@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet.protobuf;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -25,29 +26,24 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.util.HadoopOutputFile;
 import org.apache.parquet.io.OutputFile;
 import org.apache.parquet.proto.ProtoParquetReader;
+import org.apache.parquet.proto.ProtoWriteSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 
+import static org.apache.flink.formats.parquet.protobuf.SimpleRecord.CollectionProtoRecord;
 import static org.apache.flink.formats.parquet.protobuf.SimpleRecord.SimpleProtoRecord;
 import static org.apache.flink.formats.parquet.protobuf.TestProto2.TestProto2Record;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for {@link PatchedProtoWriteSupport} to verify protobuf 4.x compatibility.
- *
- * <p>This test validates that the patched string-based syntax detection correctly handles both
- * proto2 and proto3 messages when using protobuf 4.x, where the enum-based Syntax API was removed.
- */
-class PatchedProtoWriteSupportTest {
+/** Tests Parquet writes with proto2 and proto3 messages. */
+class ParquetProtoWritersTest {
 
     @TempDir File tempDir;
 
-    /**
-     * Tests that proto3 messages can be written and read correctly with the patched write support.
-     */
+    /** Tests that proto3 messages can be written and read correctly. */
     @Test
     void testProto3SyntaxDetection() throws IOException {
         File outputFile = new File(tempDir, "proto3_test.parquet");
@@ -61,11 +57,11 @@ class PatchedProtoWriteSupportTest {
                         .setNum(42)
                         .build();
 
-        // Write using PatchedProtoWriteSupport directly
+        // Write using ProtoWriteSupport directly
         try (ParquetWriter<SimpleProtoRecord> writer =
                 new ParquetWriter<>(
                         path,
-                        new PatchedProtoWriteSupport<>(SimpleProtoRecord.class),
+                        new ProtoWriteSupport<>(SimpleProtoRecord.class),
                         CompressionCodecName.SNAPPY,
                         ParquetWriter.DEFAULT_BLOCK_SIZE,
                         ParquetWriter.DEFAULT_PAGE_SIZE)) {
@@ -81,9 +77,7 @@ class PatchedProtoWriteSupportTest {
         }
     }
 
-    /**
-     * Tests that proto2 messages can be written and read correctly with the patched write support.
-     */
+    /** Tests that proto2 messages can be written and read correctly. */
     @Test
     void testProto2SyntaxDetection() throws IOException {
         File outputFile = new File(tempDir, "proto2_test.parquet");
@@ -93,11 +87,11 @@ class PatchedProtoWriteSupportTest {
         TestProto2Record record =
                 TestProto2Record.newBuilder().setName("test_name").setValue(123).build();
 
-        // Write using PatchedProtoWriteSupport directly
+        // Write using ProtoWriteSupport directly
         try (ParquetWriter<TestProto2Record> writer =
                 new ParquetWriter<>(
                         path,
-                        new PatchedProtoWriteSupport<>(TestProto2Record.class),
+                        new ProtoWriteSupport<>(TestProto2Record.class),
                         CompressionCodecName.SNAPPY,
                         ParquetWriter.DEFAULT_BLOCK_SIZE,
                         ParquetWriter.DEFAULT_PAGE_SIZE)) {
@@ -131,11 +125,11 @@ class PatchedProtoWriteSupportTest {
         SimpleProtoRecord record =
                 SimpleProtoRecord.newBuilder().setFoo("").setBar("").setNum(0).build();
 
-        // Write using PatchedProtoWriteSupport
+        // Write using ProtoWriteSupport
         try (ParquetWriter<SimpleProtoRecord> writer =
                 new ParquetWriter<>(
                         path,
-                        new PatchedProtoWriteSupport<>(SimpleProtoRecord.class),
+                        new ProtoWriteSupport<>(SimpleProtoRecord.class),
                         CompressionCodecName.SNAPPY,
                         ParquetWriter.DEFAULT_BLOCK_SIZE,
                         ParquetWriter.DEFAULT_PAGE_SIZE)) {
@@ -164,11 +158,11 @@ class PatchedProtoWriteSupportTest {
         // Create a proto2 message with only one field set
         TestProto2Record record = TestProto2Record.newBuilder().setName("only_name").build();
 
-        // Write using PatchedProtoWriteSupport
+        // Write using ProtoWriteSupport
         try (ParquetWriter<TestProto2Record> writer =
                 new ParquetWriter<>(
                         path,
-                        new PatchedProtoWriteSupport<>(TestProto2Record.class),
+                        new ProtoWriteSupport<>(TestProto2Record.class),
                         CompressionCodecName.SNAPPY,
                         ParquetWriter.DEFAULT_BLOCK_SIZE,
                         ParquetWriter.DEFAULT_PAGE_SIZE)) {
@@ -188,18 +182,44 @@ class PatchedProtoWriteSupportTest {
         }
     }
 
+    @Test
+    void testSpecsCompliantCollections() throws IOException {
+        Path path = new Path(new File(tempDir, "proto3_collections.parquet").toURI());
+        Configuration conf = new Configuration();
+        ProtoWriteSupport.setWriteSpecsCompliant(conf, true);
+
+        CollectionProtoRecord empty = CollectionProtoRecord.getDefaultInstance();
+        CollectionProtoRecord populated =
+                CollectionProtoRecord.newBuilder().addNumbers(42).putCounts("item", 1).build();
+
+        try (ParquetWriter<CollectionProtoRecord> writer =
+                new ParquetProtoWriters.ParquetProtoWriterBuilder<>(
+                                HadoopOutputFile.fromPath(path, conf), CollectionProtoRecord.class)
+                        .withConf(conf)
+                        .build()) {
+            writer.write(empty);
+            writer.write(populated);
+        }
+
+        try (ParquetReader<CollectionProtoRecord.Builder> reader =
+                ProtoParquetReader.<CollectionProtoRecord.Builder>builder(path).build()) {
+            assertThat(reader.read().build()).isEqualTo(empty);
+            assertThat(reader.read().build()).isEqualTo(populated);
+            assertThat(reader.read()).isNull();
+        }
+    }
+
     /**
      * Integration test using ParquetProtoWriters (Flink's production API).
      *
-     * <p>This validates that PatchedProtoWriteSupport works correctly when used through Flink's
+     * <p>This validates that ProtoWriteSupport works correctly when used through Flink's
      * ParquetProtoWriters factory, which is the actual production code path.
      */
     @Test
     void testViaParquetProtoWritersForProto3() throws IOException {
         File outputFile = new File(tempDir, "proto3_via_writers.parquet");
         Path hadoopPath = new Path(outputFile.toURI());
-        OutputFile outputFileObj =
-                HadoopOutputFile.fromPath(hadoopPath, new org.apache.hadoop.conf.Configuration());
+        OutputFile outputFileObj = HadoopOutputFile.fromPath(hadoopPath, new Configuration());
 
         // Create a proto3 message
         SimpleProtoRecord record =
@@ -236,8 +256,7 @@ class PatchedProtoWriteSupportTest {
     void testViaParquetProtoWritersForProto2() throws IOException {
         File outputFile = new File(tempDir, "proto2_via_writers.parquet");
         Path hadoopPath = new Path(outputFile.toURI());
-        OutputFile outputFileObj =
-                HadoopOutputFile.fromPath(hadoopPath, new org.apache.hadoop.conf.Configuration());
+        OutputFile outputFileObj = HadoopOutputFile.fromPath(hadoopPath, new Configuration());
 
         // Create a proto2 message with partial fields
         TestProto2Record record =

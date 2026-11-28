@@ -24,3 +24,8 @@ message SimpleProtoRecord {
   string bar = 2;
   int32 num = 3;
 }
+
+message CollectionProtoRecord {
+  repeated int32 numbers = 1;
+  map<string, int32> counts = 2;
+}

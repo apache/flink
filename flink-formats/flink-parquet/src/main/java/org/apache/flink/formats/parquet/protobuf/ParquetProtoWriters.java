@@ -26,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.api.WriteSupport;
 import org.apache.parquet.io.OutputFile;
+import org.apache.parquet.proto.ProtoWriteSupport;
 
 /** Convenience builder for creating {@link ParquetWriterFactory} instances for Protobuf classes. */
 public class ParquetProtoWriters {
@@ -61,8 +62,7 @@ public class ParquetProtoWriters {
 
         @Override
         protected WriteSupport<T> getWriteSupport(Configuration conf) {
-            // Use patched implementation compatible with protobuf 4.x
-            return new PatchedProtoWriteSupport<>(clazz);
+            return new ProtoWriteSupport<>(clazz);
         }
     }
 
