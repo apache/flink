@@ -122,18 +122,22 @@ public class StateFutureUtils {
                     if (iterator == null) {
                         return StateFutureUtils.completedFuture(Collections.emptyList());
                     }
-                    InternalStateIterator<T> theIterator = ((InternalStateIterator<T>) iterator);
-                    if (!theIterator.hasNextLoading()) {
-                        return StateFutureUtils.completedFuture(theIterator.getCurrentCache());
-                    } else {
-                        final ArrayList<T> result = new ArrayList<>();
-                        return theIterator
-                                .onNext(
-                                        next -> {
-                                            result.add(next);
-                                        })
-                                .thenApply(ignored -> result);
+                    // Not every StateIterator is an InternalStateIterator. The async TTL
+                    // wrappers, for instance, only implement StateIterator, so collect through
+                    // onNext instead of casting and losing the already loaded cache fast path.
+                    if (iterator instanceof InternalStateIterator) {
+                        InternalStateIterator<T> theIterator =
+                                ((InternalStateIterator<T>) iterator);
+                        if (!theIterator.hasNextLoading()) {
+                            return StateFutureUtils.completedFuture(theIterator.getCurrentCache());
+                        }
                     }
+                    final ArrayList<T> result = new ArrayList<>();
+                    return iterator.onNext(
+                                    next -> {
+                                        result.add(next);
+                                    })
+                            .thenApply(ignored -> result);
                 });
     }
 }
