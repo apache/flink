@@ -35,6 +35,52 @@ ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), D
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertsAndUpdatesWithoutUpsertKey">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE names, op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER'])]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(op=[$0], name=[$1])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), MAP(_UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE"), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) op, VARCHAR(2147483647) name)])
+   +- LogicalProject(name=[$0])
+      +- LogicalProject(name=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), MAP(_UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE"), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,name], rowType=[RecordType(VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
++- Calc(select=[name], changelogMode=[I,UA])
+   +- ChangelogFilter(keep=[I,UA], changelogMode=[I,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonKeyFilterWithDeletes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE a_names, op => DESCRIPTOR(op), op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'], produces_full_deletes => false)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(op=[$0], id=[$1], name=[$2])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0), DESCRIPTOR(_UTF-16LE'op'), MAP(_UTF-16LE'INSERT,UPDATE_AFTER':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'C', _UTF-16LE'DELETE':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'D'), false, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalProject(id=[$0], name=[$1])
+         +- LogicalFilter(condition=[=($1, _UTF-16LE'a')])
+            +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DESCRIPTOR(_UTF-16LE'op'), MAP(_UTF-16LE'INSERT,UPDATE_AFTER':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'C', _UTF-16LE'DELETE':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'D'), false, DEFAULT(), DEFAULT())], uid=[null], select=[op,id,name], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- Calc(select=[id, CAST('a' AS VARCHAR(2147483647)) AS name], changelogMode=[I,UA,D])
+   +- ChangelogNormalize(key=[id], condition=[=(name, 'a')], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractPartitionBy">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)]]>
@@ -157,8 +203,9 @@ LogicalProject(id=[$0], op=[$1], name=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op'), MAP(_UTF-16LE'INSERT,UPDATE_AFTER', _UTF-16LE'C'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
-+- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
-   +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[id]], changelogMode=[I,UA])
+   +- ChangelogFilter(keep=[I,UA], changelogMode=[I,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>

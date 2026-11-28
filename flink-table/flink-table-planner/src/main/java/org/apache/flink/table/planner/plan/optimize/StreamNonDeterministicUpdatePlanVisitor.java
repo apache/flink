@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalcBase;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogFilter;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
@@ -213,6 +214,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             return visitChangelogNormalize(
                     (StreamPhysicalChangelogNormalize) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalDropUpdateBefore
+                || rel instanceof StreamPhysicalChangelogFilter
                 || rel instanceof StreamPhysicalMiniBatchAssigner
                 || rel instanceof StreamPhysicalUnion
                 || rel instanceof StreamPhysicalSort

@@ -911,6 +911,30 @@ class TypeInferenceExtractorTest {
                         .expectErrorMessage(
                                 "Invalid argument traits for argument 'data'. "
                                         + "Trait NOTIFY_STATEFUL_SETS requires BROADCAST_SEMANTIC_TABLE."),
+                // ---
+                TestSpec.forProcessTableFunction(IgnoreRetractionsProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "r",
+                                        Row.class,
+                                        false,
+                                        EnumSet.of(
+                                                StaticArgumentTrait.ROW_SEMANTIC_TABLE,
+                                                StaticArgumentTrait.SUPPORT_UPDATES,
+                                                StaticArgumentTrait.IGNORE_RETRACTIONS)))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(
+                                IgnoreRetractionsWithoutUpdatesProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Invalid argument traits for argument 'r'. "
+                                        + "Trait IGNORE_RETRACTIONS requires SUPPORT_UPDATES."),
+                // ---
+                TestSpec.forProcessTableFunction(
+                                IgnoreRetractionsWithUpdateBeforeProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Invalid argument traits for argument 'r'. "
+                                        + "Trait REQUIRE_UPDATE_BEFORE is incompatible with IGNORE_RETRACTIONS."),
                 TestSpec.forScalarFunction("Bitmap in scalar function", BitmapTypeFunction.class)
                         .expectStaticArgument(
                                 StaticArgument.scalar("bm", DataTypes.BITMAP(), false))
@@ -2765,6 +2789,36 @@ class TypeInferenceExtractorTest {
         public void eval(
                 @StateHint(value = StateKind.BROADCAST, ttl = "1 day") MyFirstState rule,
                 @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row data) {}
+    }
+
+    private static class IgnoreRetractionsProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint({
+                            ArgumentTrait.ROW_SEMANTIC_TABLE,
+                            ArgumentTrait.SUPPORT_UPDATES,
+                            ArgumentTrait.IGNORE_RETRACTIONS
+                        })
+                        Row r) {}
+    }
+
+    private static class IgnoreRetractionsWithoutUpdatesProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint({ArgumentTrait.ROW_SEMANTIC_TABLE, ArgumentTrait.IGNORE_RETRACTIONS})
+                        Row r) {}
+    }
+
+    private static class IgnoreRetractionsWithUpdateBeforeProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint({
+                            ArgumentTrait.ROW_SEMANTIC_TABLE,
+                            ArgumentTrait.SUPPORT_UPDATES,
+                            ArgumentTrait.REQUIRE_UPDATE_BEFORE,
+                            ArgumentTrait.IGNORE_RETRACTIONS
+                        })
+                        Row r) {}
     }
 
     private static class NotifyStatefulSetsWithoutBroadcastProcessTableFunction

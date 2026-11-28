@@ -1741,6 +1741,8 @@ For upserting tables, if the changelog contains key-only deletions (also known a
 fields are set when a row enters the function. Non-key fields are set to `null`, regardless of `NOT NULL` constraints.
 Use `ArgumentTrait.REQUIRE_FULL_DELETE` to enforce that only full deletes enter the function.
 
+Use `ArgumentTrait.IGNORE_RETRACTIONS` if the function needs neither `-U` nor `-D` messages.
+
 The `SUPPORTS_UPDATES` trait is intended for advanced use cases. Please note that inputs are always insert-only in batch
 mode. Thus, if the PTF should produce the same results in both batch and streaming mode, results should be emitted based
 on watermarks and event-time.
@@ -1792,6 +1794,36 @@ SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
 // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, 100].
 
 // In both encodings, a materialized table would only contain a row for Alice.
+```
+
+#### Ignoring Retractions
+
+The `ArgumentTrait.IGNORE_RETRACTIONS` instructs the system that a table argument which `SUPPORT_UPDATES` reads only
+`RowKind.INSERT` and `RowKind.UPDATE_AFTER` messages. The function never receives `RowKind.UPDATE_BEFORE` or
+`RowKind.DELETE` messages, so it must not rely on them, for example to learn the previous version of a row or that a
+row was deleted.
+
+In return, the system can provide the updating table more cheaply. It drops retractions early and needs neither an
+upsert key nor a stateful normalization of an upsert changelog in front of the function.
+
+```java
+public void eval(@ArgumentHint({ROW_SEMANTIC_TABLE, SUPPORT_UPDATES, IGNORE_RETRACTIONS}) Row input) {
+  // `input` is always an INSERT or UPDATE_AFTER row
+}
+```
+
+The following example shows which changes enter the function:
+
+```text
+// Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+// backed by upsert changelog with changes
+// +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+
+// Given a function `f` that declares `table_arg` with IGNORE_RETRACTIONS.
+SELECT * FROM f(table_arg => TABLE UpdatingTable)
+
+// The following changes will enter the function:
+// +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100]
 ```
 
 #### Example: Changelog Filtering

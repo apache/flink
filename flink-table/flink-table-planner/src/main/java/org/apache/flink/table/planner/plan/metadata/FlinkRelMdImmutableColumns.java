@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.metadata;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner;
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogFilter;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
@@ -122,6 +123,12 @@ public class FlinkRelMdImmutableColumns implements MetadataHandler<FlinkMetadata
 
     public ImmutableBitSet getImmutableColumns(
             StreamPhysicalDropUpdateBefore rel, RelMetadataQuery mq) {
+        FlinkRelMetadataQuery fmq = FlinkRelMetadataQuery.reuseOrCreate(mq);
+        return guardByUpsertKeys(rel, fmq.getImmutableColumns(rel.getInput()), fmq);
+    }
+
+    public ImmutableBitSet getImmutableColumns(
+            StreamPhysicalChangelogFilter rel, RelMetadataQuery mq) {
         FlinkRelMetadataQuery fmq = FlinkRelMetadataQuery.reuseOrCreate(mq);
         return guardByUpsertKeys(rel, fmq.getImmutableColumns(rel.getInput()), fmq);
     }

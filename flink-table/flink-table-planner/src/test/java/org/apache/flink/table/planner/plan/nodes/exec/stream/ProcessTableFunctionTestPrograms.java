@@ -72,6 +72,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowDataRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableIgnoreRetractionsArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsTimeFunction;
@@ -577,6 +578,39 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[Alice, {-D[Alice, null], upsert-partial-delete}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_INPUT_IGNORE_RETRACTIONS =
+            TableTestProgram.of(
+                            "process-updating-input-ignore-retractions",
+                            "table argument accepts updates but never receives retractions")
+                    .setupTemporarySystemFunction(
+                            "f", RowSemanticTableIgnoreRetractionsArgFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "score INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Bob", 5),
+                                            Row.ofKind(RowKind.INSERT, "Alice", 2),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Bob", 3),
+                                            Row.ofKind(RowKind.DELETE, "Bob", null),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 2),
+                                            Row.ofKind(RowKind.DELETE, "Alice", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{+I[Bob, 5], upsert-no-delete}]",
+                                            "+I[{+I[Alice, 2], upsert-no-delete}]",
+                                            "+I[{+U[Bob, 3], upsert-no-delete}]",
+                                            "+I[{+I[Bob, 2], upsert-no-delete}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t)")
                     .build();
 
     public static final TableTestProgram PROCESS_UPDATING_INPUT_ENFORCED_FULL_DELETES =

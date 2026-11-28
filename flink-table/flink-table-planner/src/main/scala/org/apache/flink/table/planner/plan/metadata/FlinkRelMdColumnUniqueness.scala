@@ -298,6 +298,15 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     mq.areColumnsUnique(rel.getInput, columns, ignoreNulls)
   }
 
+  // Dropping rows never creates duplicates, so unique columns of the input stay unique
+  def areColumnsUnique(
+      rel: StreamPhysicalChangelogFilter,
+      mq: RelMetadataQuery,
+      columns: ImmutableBitSet,
+      ignoreNulls: Boolean): JBoolean = {
+    mq.areColumnsUnique(rel.getInput, columns, ignoreNulls)
+  }
+
   def areColumnsUnique(
       rel: Aggregate,
       mq: RelMetadataQuery,

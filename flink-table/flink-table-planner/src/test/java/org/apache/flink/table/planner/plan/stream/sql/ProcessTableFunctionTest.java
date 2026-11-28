@@ -48,6 +48,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NoSystemArgsTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableIgnoreRetractionsArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
@@ -500,6 +501,15 @@ class ProcessTableFunctionTest extends TableTestBase {
     void testUpsertInputWithRowSemanticsFilteredOnNonKeyColumn() {
         util.addTemporarySystemFunction("f", RowSemanticUpdatingFunction.class);
         util.tableEnv().executeSql("CREATE VIEW v AS SELECT * FROM t_updating WHERE `EXPR$1` > 1");
+        util.verifyRelPlan(
+                "SELECT * FROM f(r => TABLE v)", singletonList(ExplainDetail.CHANGELOG_MODE));
+    }
+
+    @Test
+    void testUpsertInputIgnoringRetractions() {
+        util.addTemporarySystemFunction("f", RowSemanticTableIgnoreRetractionsArgFunction.class);
+        util.tableEnv()
+                .executeSql("CREATE VIEW v AS SELECT score FROM t_upsert_source WHERE score > 1");
         util.verifyRelPlan(
                 "SELECT * FROM f(r => TABLE v)", singletonList(ExplainDetail.CHANGELOG_MODE));
     }

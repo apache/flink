@@ -25,6 +25,7 @@ import org.apache.flink.legacy.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalcBase;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogFilter;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
@@ -117,6 +118,7 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
                 || rel instanceof StreamPhysicalMiniBatchAssigner
                 || rel instanceof StreamPhysicalWatermarkAssigner
                 || rel instanceof StreamPhysicalDropUpdateBefore
+                || rel instanceof StreamPhysicalChangelogFilter
                 || rel instanceof StreamPhysicalTableSourceScan
                 || rel instanceof StreamPhysicalDataStreamScan
                 || rel instanceof StreamPhysicalLegacyTableSourceScan

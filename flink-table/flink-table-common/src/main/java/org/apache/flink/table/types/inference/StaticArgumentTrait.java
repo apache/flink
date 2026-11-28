@@ -68,7 +68,17 @@ public enum StaticArgumentTrait {
 
     // For SUPPORT_UPDATES
     REQUIRE_UPDATE_BEFORE(SUPPORT_UPDATES),
-    REQUIRE_FULL_DELETE(SUPPORT_UPDATES);
+    REQUIRE_FULL_DELETE(SUPPORT_UPDATES),
+
+    /**
+     * Specifies that the function reads only INSERT and UPDATE_AFTER rows of this table argument.
+     *
+     * <p>The function never receives UPDATE_BEFORE or DELETE rows of this table argument. It must
+     * not depend on them, for example to learn the previous version of a row or that a row was
+     * deleted. In return, the job can be considerably cheaper, since the engine can drop the
+     * stateful normalization that retractions and deletions often require.
+     */
+    IGNORE_RETRACTIONS(SUPPORT_UPDATES);
 
     private static final Set<StaticArgumentTrait> ROOTS = EnumSet.of(SCALAR, TABLE, MODEL);
 
@@ -100,6 +110,11 @@ public enum StaticArgumentTrait {
                 return EnumSet.of(SET_SEMANTIC_TABLE, BROADCAST_SEMANTIC_TABLE);
             case BROADCAST_SEMANTIC_TABLE:
                 return EnumSet.of(ROW_SEMANTIC_TABLE, SET_SEMANTIC_TABLE, PASS_COLUMNS_THROUGH);
+            case REQUIRE_UPDATE_BEFORE:
+            case REQUIRE_FULL_DELETE:
+                return EnumSet.of(IGNORE_RETRACTIONS);
+            case IGNORE_RETRACTIONS:
+                return EnumSet.of(REQUIRE_UPDATE_BEFORE, REQUIRE_FULL_DELETE);
             default:
                 return Collections.emptySet();
         }

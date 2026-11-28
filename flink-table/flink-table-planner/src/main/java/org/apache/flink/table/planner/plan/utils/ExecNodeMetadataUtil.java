@@ -57,6 +57,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.runtimefilter.BatchE
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogFilter;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDataStreamScan;
@@ -141,6 +142,7 @@ public final class ExecNodeMetadataUtil {
             new HashSet<>() {
                 {
                     add(StreamExecCalc.class);
+                    add(StreamExecChangelogFilter.class);
                     add(StreamExecChangelogNormalize.class);
                     add(StreamExecCorrelate.class);
                     add(StreamExecDeduplicate.class);
