@@ -145,6 +145,22 @@ public interface StateTransitions {
                 List<ExceptionHistoryEntry> failureCollection);
     }
 
+    /** Interface covering transition to the {@link RetryingExecutionGraphCreation} state. */
+    interface ToRetryingExecutionGraphCreation extends StateTransitions {
+
+        /**
+         * Transitions into the {@link RetryingExecutionGraphCreation} state after a failed
+         * ExecutionGraph creation attempt.
+         *
+         * @param previousExecutionGraph the (already terminal) previous ExecutionGraph, or {@code
+         *     null} if this was the first creation attempt
+         * @param backoffTime backoff to wait before re-attempting resource acquisition + EG
+         *     creation
+         */
+        void goToRetryingExecutionGraphCreation(
+                @Nullable ExecutionGraph previousExecutionGraph, Duration backoffTime);
+    }
+
     /** Interface covering transition to the {@link StopWithSavepoint} state. */
     interface ToStopWithSavepoint extends StateTransitions {
 

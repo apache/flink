@@ -53,6 +53,8 @@ public class MetricNames {
 
     public static final String NUM_RESTARTS = "numRestarts";
     public static final String NUM_RESCALES = "numRescales";
+    public static final String NUM_EXECUTION_GRAPH_CREATION_RETRIES =
+            "numExecutionGraphCreationRetries";
 
     public static final String MEMORY_USED = "Used";
     public static final String MEMORY_COMMITTED = "Committed";

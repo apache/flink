@@ -190,6 +190,7 @@ public class AdaptiveScheduler
                 CreatingExecutionGraph.Context,
                 Executing.Context,
                 Restarting.Context,
+                RetryingExecutionGraphCreation.Context,
                 Failing.Context,
                 Finished.Context,
                 StopWithSavepoint.Context {
@@ -426,6 +427,8 @@ public class AdaptiveScheduler
 
     private final RestartBackoffTimeStrategy restartBackoffTimeStrategy;
 
+    private long numExecutionGraphCreationRetries;
+
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
     private final FatalErrorHandler fatalErrorHandler;
     private final Collection<FailureEnricher> failureEnrichers;
@@ -615,6 +618,7 @@ public class AdaptiveScheduler
                 jobStatusStore,
                 () -> (long) numRestarts,
                 () -> (long) numRescales,
+                () -> numExecutionGraphCreationRetries,
                 this.executionStateMetricsRegistrars,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
@@ -1378,6 +1382,15 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public void goToRetryingExecutionGraphCreation(
+            @Nullable ExecutionGraph previousExecutionGraph, Duration backoffTime) {
+        transitionToState(
+                new RetryingExecutionGraphCreation.Factory(
+                        this, LOG, previousExecutionGraph, backoffTime));
+        numExecutionGraphCreationRetries++;
+    }
+
+    @Override
     public void goToFailing(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
@@ -1602,6 +1615,17 @@ public class AdaptiveScheduler
                 optionalFailure);
 
         jobTerminationFuture.complete(archivedExecutionGraph.getState());
+    }
+
+    @Override
+    public FailureResult howToHandleEGCreationFailure(Throwable failure) {
+        final FailureEnricher.Context ctx =
+                DefaultFailureEnricherContext.forGlobalFailure(
+                        jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeClassLoader);
+        final CompletableFuture<Map<String, String>> failureLabels =
+                FailureEnricherUtils.labelFailure(
+                        failure, ctx, getMainThreadExecutor(), failureEnrichers);
+        return howToHandleFailure(failure, failureLabels);
     }
 
     @Override
