@@ -1364,7 +1364,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
+    "properties" : {
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -1525,7 +1538,32 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:AggregatedMetric",
+    "properties" : {
+      "avg" : {
+        "type" : "number"
+      },
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "max" : {
+        "type" : "number"
+      },
+      "min" : {
+        "type" : "number"
+      },
+      "skew" : {
+        "type" : "number"
+      },
+      "sum" : {
+        "type" : "number"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -3464,7 +3502,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
+    "properties" : {
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -5418,7 +5469,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
+    "properties" : {
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -5473,7 +5537,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
+    "properties" : {
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -5620,7 +5697,32 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:AggregatedMetric",
+    "properties" : {
+      "avg" : {
+        "type" : "number"
+      },
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "max" : {
+        "type" : "number"
+      },
+      "min" : {
+        "type" : "number"
+      },
+      "skew" : {
+        "type" : "number"
+      },
+      "sum" : {
+        "type" : "number"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -6012,7 +6114,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
+    "properties" : {
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -6292,7 +6407,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
+    "properties" : {
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -6681,7 +6809,32 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:AggregatedMetric",
+    "properties" : {
+      "avg" : {
+        "type" : "number"
+      },
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "max" : {
+        "type" : "number"
+      },
+      "min" : {
+        "type" : "number"
+      },
+      "skew" : {
+        "type" : "number"
+      },
+      "sum" : {
+        "type" : "number"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
@@ -7056,7 +7209,20 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           <details>
           <summary>Response</summary>
           <pre><code>{
-  "type" : "any"
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:Metric",
+    "properties" : {
+      "id" : {
+        "type" : "string",
+        "required" : true
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
 }</code></pre>
         </label>
       </td>
