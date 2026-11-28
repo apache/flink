@@ -254,9 +254,9 @@ public class DeduplicateTestPrograms {
             TableTestProgram.of(
                             "deduplicate-updating-input",
                             "with one live row per key, every change is forwarded whatever "
-                                    + "sequence_by says, a key-only -D is emitted with the full row, "
-                                    + "a -D without state emits nothing, and +U without state is a "
-                                    + "first record")
+                                    + "keep and sequence_by say, a key-only -D is emitted with the "
+                                    + "full row, a -D without state emits nothing, and +U without "
+                                    + "state is a first record")
                     .setupTableSource(
                             SourceTestStep.newBuilder("customers_cdc")
                                     .addSchema(
@@ -285,46 +285,26 @@ public class DeduplicateTestPrograms {
                                             "-D[c1, Hamburg, 110]",
                                             "+I[c1, Bremen, 115]")
                                     .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_first")
+                                    .addSchema(
+                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING",
+                                            "lsn BIGINT")
+                                    .consumedValues(
+                                            "+I[c1, Berlin, 100]",
+                                            "+U[c1, Munich, 120]",
+                                            "+U[c1, Hamburg, 110]",
+                                            "-D[c1, Hamburg, 110]",
+                                            "+I[c1, Bremen, 115]")
+                                    .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM DEDUPLICATE("
                                     + "input => TABLE customers_cdc PARTITION BY customer_id, "
                                     + "keep => 'last', "
                                     + "sequence_by => DESCRIPTOR(lsn))")
-                    .build();
-
-    public static final TableTestProgram UPDATING_INPUT_KEEP_FIRST =
-            TableTestProgram.of(
-                            "deduplicate-updating-input-keep-first",
-                            "with one live row per key, keep => 'first' has no effect")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("customers_cdc")
-                                    .addSchema(
-                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
-                                            "city STRING")
-                                    .addMode(ChangelogMode.upsert())
-                                    .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "c1", "Berlin"),
-                                            Row.ofKind(RowKind.INSERT, "c2", "Paris"),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Munich"),
-                                            Row.ofKind(RowKind.DELETE, "c1", null),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "c2", "Lyon"),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "c1", "Bremen"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(
-                                            "customer_id STRING PRIMARY KEY NOT ENFORCED",
-                                            "city STRING")
-                                    .consumedValues(
-                                            "+I[c1, Berlin]",
-                                            "+I[c2, Paris]",
-                                            "+U[c1, Munich]",
-                                            "-D[c1, Munich]",
-                                            "+U[c2, Lyon]",
-                                            "+I[c1, Bremen]")
-                                    .build())
                     .runSql(
-                            "INSERT INTO sink SELECT * FROM DEDUPLICATE("
+                            "INSERT INTO sink_first SELECT * FROM DEDUPLICATE("
                                     + "input => TABLE customers_cdc PARTITION BY customer_id, "
                                     + "keep => 'first')")
                     .build();

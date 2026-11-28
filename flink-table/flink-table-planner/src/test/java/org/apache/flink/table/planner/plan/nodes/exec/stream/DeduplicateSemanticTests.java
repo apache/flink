@@ -35,7 +35,6 @@ public class DeduplicateSemanticTests extends SemanticTestBase {
                 DeduplicateTestPrograms.COMPOSITE_AND_NULL_KEY,
                 DeduplicateTestPrograms.SEQUENCE_BY,
                 DeduplicateTestPrograms.UPDATING_INPUT,
-                DeduplicateTestPrograms.UPDATING_INPUT_KEEP_FIRST,
                 DeduplicateTestPrograms.RETRACT_INPUT,
                 DeduplicateTestPrograms.LIVE_ROWS);
     }

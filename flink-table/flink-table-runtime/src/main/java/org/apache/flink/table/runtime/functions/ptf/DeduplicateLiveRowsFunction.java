@@ -187,14 +187,6 @@ public class DeduplicateLiveRowsFunction extends DeduplicateRowFunctionBase {
                 nextArrival = candidateArrival;
             }
         }
-        // OPEN POINT
-        //
-        // note : this may be able to be optimised from O(N) -> O(log N) amourtised when we do not
-        // have the stateTTL arguement, by employing the use of a heap
-
-        // state ttl cant present in this optimisation because of issues that will arise when
-        // ttl expires
-
         if (next == null) {
             currentState.clear();
             arrivalState.clear();
@@ -253,23 +245,13 @@ public class DeduplicateLiveRowsFunction extends DeduplicateRowFunctionBase {
                         DataTypes.FIELD("count", DataTypes.BIGINT().notNull()),
                         DataTypes.FIELD("arrival", DataTypes.BIGINT().notNull()));
         return internalState(
-                Map.entry(
-                        ROWS_STATE,
-                        StateTypeStrategy.of(
-                                callContext ->
-                                        Optional.of(MapView.newMapViewDataType(rowType, entryType)),
-                                ttl)),
-                Map.entry(
-                        CURRENT_STATE,
-                        StateTypeStrategy.of(
-                                callContext -> Optional.of(ValueView.newValueViewDataType(rowType)),
-                                ttl)),
-                Map.entry(
-                        ARRIVAL_STATE,
-                        StateTypeStrategy.of(
-                                callContext ->
-                                        Optional.of(
-                                                ValueView.newValueViewDataType(DataTypes.BIGINT())),
-                                ttl)));
+                stateEntry(ROWS_STATE, MapView.newMapViewDataType(rowType, entryType), ttl),
+                stateEntry(CURRENT_STATE, ValueView.newValueViewDataType(rowType), ttl),
+                stateEntry(ARRIVAL_STATE, ValueView.newValueViewDataType(DataTypes.BIGINT()), ttl));
+    }
+
+    private static Map.Entry<String, StateTypeStrategy> stateEntry(
+            final String name, final DataType type, @Nullable final Duration ttl) {
+        return Map.entry(name, StateTypeStrategy.of(callContext -> Optional.of(type), ttl));
     }
 }
