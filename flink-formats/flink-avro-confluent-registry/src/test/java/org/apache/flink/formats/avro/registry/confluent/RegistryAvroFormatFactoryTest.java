@@ -49,7 +49,6 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSin
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertThrows;
 
 /** Tests for the {@link RegistryAvroFormatFactory}. */
 class RegistryAvroFormatFactoryTest {
@@ -222,11 +221,11 @@ class RegistryAvroFormatFactoryTest {
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        sinkMock.valueFormat.createRuntimeEncoder(
-                                null, SCHEMA.toPhysicalRowDataType()));
+        assertThatThrownBy(
+                        () ->
+                                sinkMock.valueFormat.createRuntimeEncoder(
+                                        null, SCHEMA.toPhysicalRowDataType()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ------------------------------------------------------------------------

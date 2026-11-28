@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -31,7 +32,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
-import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
@@ -55,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT cases for the {@link AvroOutputFormat}. */
 @SuppressWarnings("serial")
-public class AvroOutputFormatITCase extends JavaProgramTestBaseJUnit4 {
+class AvroOutputFormatITCase extends JavaProgramTestBase {
 
     public static String outputPath1;
 
@@ -74,7 +75,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBaseJUnit4 {
     }
 
     @Override
-    protected void testProgram() throws Exception {
+    protected JobExecutionResult testProgram() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStream<Tuple3<String, Integer, String>> input =
                 env.createInput(new TextInputFormat(new Path(inputPath)))
@@ -103,7 +104,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBaseJUnit4 {
                 new OutputFormatSinkFunction<>(
                         new AvroOutputFormat<>(new Path(outputPath2), ReflectiveUser.class)));
 
-        env.execute();
+        return env.execute();
     }
 
     @Override

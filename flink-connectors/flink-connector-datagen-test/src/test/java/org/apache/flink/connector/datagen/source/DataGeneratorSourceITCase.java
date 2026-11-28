@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -54,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** An integration test for {@code DataGeneratorSource}. */
-class DataGeneratorSourceITCase extends TestLogger {
+class DataGeneratorSourceITCase {
 
     private static final int PARALLELISM = 4;
 

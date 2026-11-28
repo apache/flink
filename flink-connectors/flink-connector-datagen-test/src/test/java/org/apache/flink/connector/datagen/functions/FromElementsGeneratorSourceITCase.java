@@ -31,7 +31,6 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for {@code FromElementsGeneratorSourceITCase}. */
-class FromElementsGeneratorSourceITCase extends TestLogger {
+class FromElementsGeneratorSourceITCase {
 
     private static final int PARALLELISM = 1;
 

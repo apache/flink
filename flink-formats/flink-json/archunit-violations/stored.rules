@@ -1,4 +1,5 @@
 #
-#Mon Apr 04 17:11:32 CEST 2022
-Tests\ inheriting\ from\ AbstractTestBase\ should\ have\ name\ ending\ with\ ITCase=24119078-1071-4906-b2ac-ed57c8154eaa
+#Fri Nov 27 21:51:57 IST 2026
+Junit4\ is\ forbidden,\ please\ use\ Junit5\ instead=341460d8-4813-43e0-b751-2fb2da795300
 ITCASE\ tests\ should\ use\ a\ MiniCluster\ resource\ or\ extension=62c5e4e5-2b0e-41ed-a268-ee33d5edd162
+Tests\ inheriting\ from\ AbstractTestBase\ should\ have\ name\ ending\ with\ ITCase=24119078-1071-4906-b2ac-ed57c8154eaa
