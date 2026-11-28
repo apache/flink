@@ -595,8 +595,8 @@ insert into snk(l0, l1, r0, r2, r1)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$5], b2=[$4], b1=[$3])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$2], l2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], l3=[null:INTEGER], r0=[$5], r2=[$4], r1=[$3])
    +- LogicalJoin(condition=[AND(=($2, $3), =($1, $4), <>($5, 0))], joinType=[inner])
       :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
       :  +- LogicalFilter(condition=[>($0, 1)])
@@ -608,8 +608,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, a1 AS l1, null:VARCHAR(2147483647) AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, b1 AS r1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a2, a1, b1, b2, b0])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[>(a0, 1)], project=[a0, a2, a1]]], fields=[a0, a2, a1])
@@ -1580,8 +1580,8 @@ insert into snk(l0, l1, r0, r2, r1)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$2], l2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[$5])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
       :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
       :  +- LogicalFilter(condition=[>($0, RAND(10))])
@@ -1591,8 +1591,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, a1 AS l1, null:VARCHAR(2147483647) AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, b1 AS r1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a2, a1], where=[>(a0, RAND(10))])
@@ -1652,8 +1652,8 @@ insert into snk(l0, l1, r0, r2, r1)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$2], l2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[$5])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
       :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
       :  +- LogicalFilter(condition=[>($0, RAND(10))])
@@ -1663,8 +1663,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, a1 AS l1, null:VARCHAR(2147483647) AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, b1 AS r1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a2, a1], where=[>(a0, RAND(10))])
@@ -1792,8 +1792,8 @@ insert into snk(l0, r0, r2)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
-+- LogicalProject(a0=[$0], EXPR$1=[null:DOUBLE], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[null:DOUBLE], l2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
       :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
       :  +- LogicalFilter(condition=[=($3, 1)])
@@ -1803,8 +1803,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, null:DOUBLE AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, null:DOUBLE AS EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, null:DOUBLE AS l1, null:VARCHAR(2147483647) AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, null:DOUBLE AS r1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a2, a1, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, src1WithPartition, partitions=[{pt=1}], project=[a0, a2, a1]]], fields=[a0, a2, a1])
@@ -1884,8 +1884,8 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$1], l2=[$2], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[$5])
    +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
       :- LogicalProject(a0=[$0], a1=[$1], a2=[$2])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
@@ -1894,8 +1894,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, a1 AS l1, a2 AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, b1 AS r1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2]]], fields=[a0, a1, a2])
@@ -1910,8 +1910,8 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[a2, a0, a1, EXPR$3, b0, b2, b1])
-+- LogicalProject(a2=[$2], a0=[$0], a1=[$1], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$2], l1=[$0], l2=[$1], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[$5])
    +- LogicalJoin(condition=[AND(=($0, $5), =($1, $4))], joinType=[inner])
       :- LogicalProject(a0=[$1], a1=[$2], a2=[$0])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
@@ -1920,8 +1920,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[a2, a0, a1, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0 AS a2, a1 AS a0, a2 AS a1, null:INTEGER AS EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, a1 AS l1, a2 AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, b1 AS r1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a1, a2, a0, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a1, a2, a0]]], fields=[a1, a2, a0])
@@ -1936,8 +1936,8 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$1], l2=[$2], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[$5])
    +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
       :- LogicalProject(a0=[$0], a1=[$1], a2=[SUBSTRING($2, 2)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
@@ -1946,8 +1946,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, a1 AS l1, a2 AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, b1 AS r1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a1, SUBSTRING(a2, 2) AS a2])
@@ -1963,8 +1963,8 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$1], l2=[$2], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[$5])
    +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
       :- LogicalProject(a0=[$0], a1=[$1], a2=[SUBSTRING($2, 2)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithMultiIndexes]])
@@ -1973,8 +1973,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, a1 AS l1, a2 AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, b1 AS r1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a1, SUBSTRING(a2, 2) AS a2])
@@ -2080,8 +2080,8 @@ insert into snk(l0, r0, r2)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
-+- LogicalProject(a0=[$0], EXPR$1=[null:DOUBLE], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[null:DOUBLE], l2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], l3=[null:INTEGER], r0=[$3], r2=[$4], r1=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
       :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
       :  +- LogicalProject(a0=[CAST($3):INTEGER NOT NULL], a1=[$0], a2=[$1], a3=[$2])
@@ -2091,8 +2091,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, null:DOUBLE AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, null:DOUBLE AS EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, null:DOUBLE AS l1, null:VARCHAR(2147483647) AS l2, null:INTEGER AS l3, b0 AS r0, b2 AS r2, null:DOUBLE AS r1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[CAST(a0 AS INTEGER) AS a0, a2, a1])
@@ -2132,8 +2132,8 @@ Sink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
-+- LogicalProject(a0=[$0], new_a1=[$3], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$3], l2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], l3=[null:INTEGER], r0=[$4], r2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], r1=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalProject(a0=[$0], a1=[$1], a2=[$2], new_a1=[+($1, 1)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithComputingCol]])
@@ -2142,8 +2142,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, new_a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, null:VARCHAR(2147483647) AS EXPR$5, null:DOUBLE AS EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, new_a1 AS l1, null:VARCHAR(2147483647) AS l2, null:INTEGER AS l3, b0 AS r0, null:VARCHAR(2147483647) AS r2, null:DOUBLE AS r1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], leftToRight=[Binary], rightToLeft=[Binary], select=[a0, a1, a2, new_a1, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a1, a2, +(a1, 1) AS new_a1])
@@ -2159,8 +2159,8 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
-+- LogicalProject(a0=[$0], new_a1=[$3], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[l0, l1, l2, l3, r0, r2, r1])
++- LogicalProject(l0=[$0], l1=[$3], l2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], l3=[null:INTEGER], r0=[$4], r2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], r1=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalProject(a0=[$0], a1=[$1], a2=[$2], new_a1=[+($1, RAND(10))])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithComputingCol]])
@@ -2169,8 +2169,8 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a0, new_a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, null:VARCHAR(2147483647) AS EXPR$5, null:DOUBLE AS EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[l0, l1, l2, l3, r0, r2, r1], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a0 AS l0, new_a1 AS l1, null:VARCHAR(2147483647) AS l2, null:INTEGER AS l3, b0 AS r0, null:VARCHAR(2147483647) AS r2, null:DOUBLE AS r1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, new_a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- Calc(select=[a0, a1, a2, +(a1, RAND(10)) AS new_a1])
