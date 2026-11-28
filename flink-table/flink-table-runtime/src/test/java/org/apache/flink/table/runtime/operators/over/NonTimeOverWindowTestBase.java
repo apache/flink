@@ -52,7 +52,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Base class for non-time over window test. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -120,6 +119,17 @@ public abstract class NonTimeOverWindowTestBase extends RowTimeOverWindowTestBas
                 }
             };
 
+    static final GeneratedRecordEqualiser GENERATED_ACC_EQUALISER =
+            new GeneratedRecordEqualiser("", "", new Object[0]) {
+
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public RecordEqualiser newInstance(ClassLoader classLoader) {
+                    return new TestAccEqualiser();
+                }
+            };
+
     /** Custom test comparator for comparing numbers. */
     public static class LongRecordComparator implements RecordComparator {
 
@@ -171,6 +181,32 @@ public abstract class NonTimeOverWindowTestBase extends RowTimeOverWindowTestBas
         }
     }
 
+    /**
+     * Custom test accumulator equaliser. Reads every field positionally, so that the two row
+     * classes may differ and an accumulator that carries bookkeeping fields beside its value is
+     * compared in full.
+     */
+    public static class TestAccEqualiser implements RecordEqualiser {
+
+        private static final long serialVersionUID = 4751197861706569990L;
+
+        @Override
+        public boolean equals(RowData row1, RowData row2) {
+            if (row1.getArity() != row2.getArity()) {
+                return false;
+            }
+            for (int i = 0; i < row1.getArity(); i++) {
+                if (row1.isNullAt(i) != row2.isNullAt(i)) {
+                    return false;
+                }
+                if (!row1.isNullAt(i) && row1.getLong(i) != row2.getLong(i)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
     /** Custom test sortKey equaliser for comparing sort keys. */
     public static class TestSortKeyEqualiser implements RecordEqualiser {
 
@@ -204,15 +240,6 @@ public abstract class NonTimeOverWindowTestBase extends RowTimeOverWindowTestBas
                 throw new IllegalArgumentException("Unknown mode: " + stateBackendMode);
         }
         return testHarness;
-    }
-
-    /**
-     * The early-out compares a {@link GenericRowData} accumulator with the {@link BinaryRowData}
-     * read back from RocksDB, which never matches until FLINK-40735 compares them with a {@link
-     * RecordEqualiser}.
-     */
-    void assumeEarlyOutSupported() {
-        assumeThat(stateBackendMode).isEqualTo(StateBackendMode.HEAP);
     }
 
     abstract void validateEntry(
