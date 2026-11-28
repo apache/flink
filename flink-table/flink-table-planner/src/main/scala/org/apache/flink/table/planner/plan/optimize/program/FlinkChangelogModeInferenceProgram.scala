@@ -47,7 +47,7 @@ import org.apache.calcite.linq4j.Ord
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.RexCall
+import org.apache.calcite.rex.{RexCall, RexProgramBuilder}
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
@@ -1352,11 +1352,21 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      *   the node who should satisfy the requiredTrait
      * @param requiredTrait
      *   the required DeleteKindTrait
+     * @param retractionsIgnored
+     *   true if a consumer above ignores retractions (see
+     *   [[StaticArgumentTrait.IGNORE_RETRACTIONS]]) and is reached only through nodes that forward
+     *   rows one by one (Calc, Exchange, Union, ...). Every other node resets it, because it reads
+     *   the deletes itself. If true, deletes may be incomplete and lead to:
+     *   - a Calc dropping the row belonging to the key of a key-only delete,
+     *   - no ChangelogNormalize for a filter or metadata columns.
      * @return
      *   A converted node which satisfies required traits by input nodes of current node. Or None if
      *   required traits cannot be satisfied.
      */
-    def visit(rel: StreamPhysicalRel, requiredTrait: DeleteKindTrait): Option[StreamPhysicalRel] =
+    def visit(
+        rel: StreamPhysicalRel,
+        requiredTrait: DeleteKindTrait,
+        retractionsIgnored: Boolean = false): Option[StreamPhysicalRel] =
       rel match {
         case sink: StreamPhysicalSink =>
           val sinkRequiredTraits = inferSinkRequiredTraits(sink)
@@ -1419,8 +1429,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                     && consumesUpserts
                     && !tableArg.is(StaticArgumentTrait.REQUIRE_FULL_DELETE)
                   ) {
-                    visitChild(child, deleteOnKeyOrNone(modifyKindSet))
-                      .orElse(this.visit(child, fullDeleteOrNone(modifyKindSet)))
+                    // The function never reads UPDATE_BEFORE or DELETE rows, so the nodes below
+                    // may forward incomplete deletes
+                    val ignoresRetractions = tableArg.is(StaticArgumentTrait.IGNORE_RETRACTIONS)
+                    visitChild(child, deleteOnKeyOrNone(modifyKindSet), ignoresRetractions)
+                      .orElse(
+                        this.visit(child, fullDeleteOrNone(modifyKindSet), ignoresRetractions))
                   } else {
                     this.visit(child, fullDeleteOrNone(modifyKindSet))
                   }
@@ -1469,17 +1483,21 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             }
           }
 
-        // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
-        // is, because we will filter all records based on the condition that applies to that key
+        // A key-only delete (DELETE_BY_KEY) carries only the key, every other column is NULL. A
+        // Calc can forward it only if
+        // - its condition references only key columns, so the tombstone is filtered like the row,
+        // - its output keeps the key, so the tombstone still identifies the row. This is not
+        //   needed if the consumer ignores retractions: the tombstone is then forwarded as an
+        //   all-NULL row and dropped by the consumer.
         case calc: StreamPhysicalCalc =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            (isNonUpsertKeyCondition(calc) || !hasOutputUpsertKey(calc))
+            (isNonUpsertKeyCondition(calc) || (!hasOutputUpsertKey(calc) && !retractionsIgnored))
           ) {
             None
           } else {
             // otherwise, forward DeleteKind requirement
-            visitChildren(rel, requiredTrait) match {
+            visitChildren(rel, requiredTrait, retractionsIgnored) match {
               case None => None
               case Some(children) =>
                 val childTrait = children.head.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
@@ -1494,7 +1512,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           if (requiredTrait == DeleteKindTrait.DELETE_BY_KEY) {
             None
           } else {
-            visitChildren(rel, requiredTrait) match {
+            visitChildren(rel, requiredTrait, retractionsIgnored) match {
               case None => None
               case Some(children) =>
                 val childTrait = children.head.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
@@ -1505,7 +1523,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case _: StreamPhysicalExchange | _: StreamPhysicalExpand |
             _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalDropUpdateBefore =>
           // transparent forward requiredTrait to children
-          visitChildren(rel, requiredTrait) match {
+          visitChildren(rel, requiredTrait, retractionsIgnored) match {
             case None => None
             case Some(children) =>
               val childTrait = children.head.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
@@ -1521,7 +1539,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
               } else {
                 requiredTrait
               }
-              this.visit(child, requiredChildTrait)
+              this.visit(child, requiredChildTrait, retractionsIgnored)
           }.toList
 
           if (children.exists(_.isEmpty)) {
@@ -1558,23 +1576,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
 
         case normalize: StreamPhysicalChangelogNormalize =>
-          // if
-          // 1. we don't need to produce UPDATE_BEFORE,
-          // 2. children can satisfy the required delete trait,
-          // 3. the normalize doesn't have filter condition which we'd lose,
-          // 4. we don't use metadata columns
-          // we can skip ChangelogNormalize
-          if (!ChangelogNormalizeRequirementResolver.isRequired(normalize)) {
-            visitChildren(normalize, requiredTrait) match {
-              case Some(children) =>
-                val input = children.head match {
-                  case exchange: StreamPhysicalExchange =>
-                    exchange.getInput
-                  case _ =>
-                    normalize.getInput
-                }
-                return Some(input.asInstanceOf[StreamPhysicalRel])
-              case _ =>
+          // ChangelogNormalize can be removed if
+          // 1. no one needs UPDATE_BEFORE,
+          // 2. the children can provide the required delete kind,
+          // 3. it is not asked to deduplicate (table.exec.source.cdc-events-duplicate),
+          // 4. it has no filter condition, which would be lost, and
+          // 5. no metadata columns are read.
+          // 4. and 5. only affect the retractions it produces, so they don't apply if the consumer
+          // ignores retractions. Its filter condition is then kept in a Calc.
+          if (!ChangelogNormalizeRequirementResolver.isRequired(normalize, retractionsIgnored)) {
+            val withoutNormalize =
+              visitChild(removeChangelogNormalize(normalize), requiredTrait, retractionsIgnored)
+            if (withoutNormalize.isDefined) {
+              return withoutNormalize
             }
           }
           val childModifyKindTrait = getModifyKindSet(rel.getInput(0))
@@ -1634,17 +1648,22 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      */
     private def visitChild(
         child: StreamPhysicalRel,
-        requiredTrait: DeleteKindTrait): Option[StreamPhysicalRel] = {
+        requiredTrait: DeleteKindTrait,
+        retractionsIgnored: Boolean = false): Option[StreamPhysicalRel] = {
       this
-        .visit(child, requiredTrait)
+        .visit(child, requiredTrait, retractionsIgnored)
         .filter(_.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE).satisfies(requiredTrait))
     }
 
     private def visitChildren(
         parent: StreamPhysicalRel,
-        requiredChildrenTrait: DeleteKindTrait): Option[List[StreamPhysicalRel]] = {
+        requiredChildrenTrait: DeleteKindTrait,
+        retractionsIgnored: Boolean = false): Option[List[StreamPhysicalRel]] = {
       val newChildren = for (child <- parent.getInputs) yield {
-        visitChild(child.asInstanceOf[StreamPhysicalRel], requiredChildrenTrait) match {
+        visitChild(
+          child.asInstanceOf[StreamPhysicalRel],
+          requiredChildrenTrait,
+          retractionsIgnored) match {
           case None =>
             // return None if one of the children can't satisfy
             return None
@@ -1652,6 +1671,32 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
       }
       Some(newChildren.toList)
+    }
+
+    /**
+     * Removes the ChangelogNormalize and the exchange that only exists for it. A filter condition
+     * pushed into the ChangelogNormalize is kept as a Calc, so it still filters the rows.
+     */
+    private def removeChangelogNormalize(
+        normalize: StreamPhysicalChangelogNormalize): StreamPhysicalRel = {
+      val input = normalize.getInput match {
+        case exchange: StreamPhysicalExchange => exchange.getInput
+        case other => other
+      }
+      if (normalize.filterCondition == null) {
+        input.asInstanceOf[StreamPhysicalRel]
+      } else {
+        val programBuilder = new RexProgramBuilder(input.getRowType, input.getCluster.getRexBuilder)
+        programBuilder.addIdentity()
+        programBuilder.addCondition(normalize.filterCondition)
+        val program = programBuilder.getProgram
+        new StreamPhysicalCalc(
+          input.getCluster,
+          input.getTraitSet,
+          input,
+          program,
+          program.getOutputRowType)
+      }
     }
 
     private def createNewNode(
@@ -1860,7 +1905,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
   }
 
-  /** Insert-only PTFs don't need UPDATE_BEFORE for non-partitioned tables with an upsert key. */
+  /**
+   * Insert-only PTFs can read upserts (no UPDATE_BEFORE) from a non-partitioned table if
+   *   - the input has an upsert key, so every UPDATE_AFTER can be matched to the row it replaces,
+   *   - or the function ignores retractions and never matches an UPDATE_AFTER to a previous row.
+   */
   private def insertOnlyPtfAcceptsUpserts(
       process: StreamPhysicalProcessTableFunction,
       tableArg: StaticArgument,
@@ -1870,8 +1919,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     val isUpdatingInput =
       tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES) && !getModifyKindSet(input).isInsertOnly
     val isInsertOnlyOutput = getModifyKindSet(process).isInsertOnly
+    val ignoresRetractions = tableArg.is(StaticArgumentTrait.IGNORE_RETRACTIONS)
     !isSetSemantic && !requiresRetractions && isUpdatingInput && isInsertOnlyOutput &&
-    hasNonEmptyUpsertKey(input)
+    (ignoresRetractions || hasNonEmptyUpsertKey(input))
   }
 
   /**

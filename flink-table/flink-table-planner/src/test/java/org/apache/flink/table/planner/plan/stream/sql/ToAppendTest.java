@@ -99,6 +99,82 @@ class ToAppendTest extends TableTestBase {
     }
 
     @Test
+    void testUnionAllWithoutUpsertKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE other_upsert_source ("
+                                + "  id INT PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D',"
+                                + "  'source.produces-delete-by-key' = 'true'"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW all_names AS "
+                                + "SELECT * FROM upsert_source UNION ALL SELECT * FROM other_upsert_source");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE all_names)", CHANGELOG_MODE);
+    }
+
+    @Test
+    void testJoinWithoutUpsertKey() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE append_source (id INT, amount INT) WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW enriched AS SELECT a.amount, u.name "
+                                + "FROM append_source a JOIN upsert_source u ON a.id = u.id");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE enriched)", CHANGELOG_MODE);
+    }
+
+    @Test
+    void testNonKeyFilterWithFullDeletes() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW a_names AS "
+                                + "SELECT * FROM upsert_source_with_full_deletes WHERE name = 'a'");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE a_names)", CHANGELOG_MODE);
+    }
+
+    @Test
+    void testNonKeyFilterWithPartialDeletes() {
+        // The filter can't be evaluated on a key-only delete, so ChangelogNormalize stays and
+        // produces full deletes
+        util.tableEnv()
+                .executeSql("CREATE VIEW a_names AS SELECT * FROM upsert_source WHERE name = 'a'");
+        util.verifyRelPlan("SELECT * FROM TO_APPEND(input => TABLE a_names)", CHANGELOG_MODE);
+    }
+
+    @Test
+    void testMetadata() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source_with_metadata ("
+                                + "  id INT PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING,"
+                                + "  `offset` BIGINT METADATA"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D',"
+                                + "  'source.produces-delete-by-key' = 'true',"
+                                + "  'readable-metadata' = 'offset:BIGINT'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_metadata)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
+    void testCdcEventsDuplicate() {
+        util.tableEnv().getConfig().set("table.exec.source.cdc-events-duplicate", "true");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_APPEND(input => TABLE upsert_source_with_full_deletes)",
+                CHANGELOG_MODE);
+    }
+
+    @Test
     void testOutputTypesMatchInput() {
         util.tableEnv()
                 .executeSql(

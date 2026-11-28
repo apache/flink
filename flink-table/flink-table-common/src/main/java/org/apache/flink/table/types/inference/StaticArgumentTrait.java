@@ -68,7 +68,17 @@ public enum StaticArgumentTrait {
 
     // For SUPPORT_UPDATES
     REQUIRE_UPDATE_BEFORE(SUPPORT_UPDATES),
-    REQUIRE_FULL_DELETE(SUPPORT_UPDATES);
+    REQUIRE_FULL_DELETE(SUPPORT_UPDATES),
+
+    /**
+     * Specifies that the function reads only INSERT and UPDATE_AFTER rows of this table argument
+     * and ignores UPDATE_BEFORE and DELETE rows, which may therefore be incomplete or missing.
+     *
+     * <p>The planner then needs no ChangelogNormalize in front of the function, for example when
+     * the input has no upsert key, filters on non-key columns, or reads metadata columns. Reserved
+     * for built-in functions.
+     */
+    IGNORE_RETRACTIONS(SUPPORT_UPDATES);
 
     private static final Set<StaticArgumentTrait> ROOTS = EnumSet.of(SCALAR, TABLE, MODEL);
 
