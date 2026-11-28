@@ -389,7 +389,7 @@ class PojoSerializerUpgradeTest {
 
         @Override
         public Long map(Long value) throws Exception {
-            Object pojo = pojoClass.newInstance();
+            Object pojo = pojoClass.getDeclaredConstructor().newInstance();
 
             fieldA.set(pojo, value);
 

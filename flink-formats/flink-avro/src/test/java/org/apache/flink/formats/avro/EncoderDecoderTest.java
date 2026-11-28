@@ -400,7 +400,7 @@ class EncoderDecoderTest {
                 X reuse = null;
                 try {
                     @SuppressWarnings("unchecked")
-                    X test = (X) obj.getClass().newInstance();
+                    X test = (X) obj.getClass().getDeclaredConstructor().newInstance();
                     reuse = test;
                 } catch (Throwable t) {
                     // do nothing

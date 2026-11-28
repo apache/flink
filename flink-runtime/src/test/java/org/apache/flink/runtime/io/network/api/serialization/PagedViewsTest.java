@@ -220,7 +220,8 @@ class PagedViewsTest {
         TestInputView inView = new TestInputView(outView.segments);
 
         for (SerializationTestType reference : elements) {
-            SerializationTestType result = reference.getClass().newInstance();
+            SerializationTestType result =
+                    reference.getClass().getDeclaredConstructor().newInstance();
             result.read(inView);
             assertThat(result).isEqualTo(reference);
         }

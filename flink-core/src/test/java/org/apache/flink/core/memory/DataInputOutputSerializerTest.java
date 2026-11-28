@@ -84,8 +84,7 @@ class DataInputOutputSerializerTest {
     }
 
     @Test
-    void testRandomValuesWriteRead()
-            throws IOException, InstantiationException, IllegalAccessException {
+    void testRandomValuesWriteRead() throws IOException, ReflectiveOperationException {
         final int numElements = 100000;
         final ArrayDeque<SerializationTestType> reference = new ArrayDeque<>();
 
@@ -101,7 +100,8 @@ class DataInputOutputSerializerTest {
                 new DataInputDeserializer(serializer.wrapAsByteBuffer());
 
         for (SerializationTestType expected : reference) {
-            SerializationTestType actual = expected.getClass().newInstance();
+            SerializationTestType actual =
+                    expected.getClass().getDeclaredConstructor().newInstance();
             actual.read(deserializer);
 
             assertThat(actual).isEqualTo(expected);

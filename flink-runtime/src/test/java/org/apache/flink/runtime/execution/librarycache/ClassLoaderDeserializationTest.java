@@ -56,7 +56,10 @@ class ClassLoaderDeserializationTest {
                             int.class, Class.forName(className, false, userClassLoader)
                         },
                         new Object[] {
-                            1, Class.forName(className, false, userClassLoader).newInstance()
+                            1,
+                            Class.forName(className, false, userClassLoader)
+                                    .getDeclaredConstructor()
+                                    .newInstance()
                         });
 
         SerializedValue<RemoteRpcInvocation> serializedMethod = new SerializedValue<>(method);

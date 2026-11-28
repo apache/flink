@@ -39,7 +39,7 @@ public class GeneratedResultFutureWrapper<T extends ResultFuture<?>>
     @Override
     public T newInstance(ClassLoader classLoader) {
         try {
-            return clazz.newInstance();
+            return clazz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new RuntimeException(
                     "Could not instantiate class " + clazz.getCanonicalName(), e);

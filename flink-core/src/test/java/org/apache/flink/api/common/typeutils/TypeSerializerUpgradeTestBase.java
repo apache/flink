@@ -124,7 +124,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             this.setupClassloader = relocatedDelegateSetupClass.getClassLoader();
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(setupClassloader)) {
-                this.delegateSetup = relocatedDelegateSetupClass.newInstance();
+                this.delegateSetup =
+                        relocatedDelegateSetupClass.getDeclaredConstructor().newInstance();
             }
         }
 
@@ -161,7 +162,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             this.verifierClassloader = relocatedDelegateVerifierClass.getClassLoader();
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(verifierClassloader)) {
-                this.delegateVerifier = relocatedDelegateVerifierClass.newInstance();
+                this.delegateVerifier =
+                        relocatedDelegateVerifierClass.getDeclaredConstructor().newInstance();
             }
         }
 

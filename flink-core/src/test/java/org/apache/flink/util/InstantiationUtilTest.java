@@ -70,7 +70,9 @@ class InstantiationUtilTest {
             Class<?> userInterface = Class.forName(interfaceName, false, userClassLoader);
             InvocationHandler userProxy =
                     (InvocationHandler)
-                            Class.forName(proxyName, false, userClassLoader).newInstance();
+                            Class.forName(proxyName, false, userClassLoader)
+                                    .getDeclaredConstructor()
+                                    .newInstance();
 
             Object proxy =
                     Proxy.newProxyInstance(userClassLoader, new Class[] {userInterface}, userProxy);

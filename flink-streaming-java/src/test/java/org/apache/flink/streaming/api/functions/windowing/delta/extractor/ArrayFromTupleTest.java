@@ -63,9 +63,9 @@ class ArrayFromTupleTest {
     }
 
     @Test
-    void testConvertFromTupleToArray() throws InstantiationException, IllegalAccessException {
+    void testConvertFromTupleToArray() throws ReflectiveOperationException {
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
-            Tuple currentTuple = (Tuple) CLASSES[i].newInstance();
+            Tuple currentTuple = (Tuple) CLASSES[i].getDeclaredConstructor().newInstance();
             String[] currentArray = new String[i + 1];
             for (int j = 0; j <= i; j++) {
                 currentTuple.setField(testStrings[j], j);
@@ -76,8 +76,9 @@ class ArrayFromTupleTest {
     }
 
     @Test
-    void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
-        Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].newInstance();
+    void testUserSpecifiedOrder() throws ReflectiveOperationException {
+        Tuple currentTuple =
+                (Tuple) CLASSES[Tuple.MAX_ARITY - 1].getDeclaredConstructor().newInstance();
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             currentTuple.setField(testStrings[i], i);
         }

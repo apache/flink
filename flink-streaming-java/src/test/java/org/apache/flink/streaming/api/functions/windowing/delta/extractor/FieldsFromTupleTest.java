@@ -63,8 +63,9 @@ class FieldsFromTupleTest {
     }
 
     @Test
-    void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
-        Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].newInstance();
+    void testUserSpecifiedOrder() throws ReflectiveOperationException {
+        Tuple currentTuple =
+                (Tuple) CLASSES[Tuple.MAX_ARITY - 1].getDeclaredConstructor().newInstance();
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             currentTuple.setField(testDouble[i], i);
         }

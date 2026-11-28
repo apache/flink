@@ -181,7 +181,8 @@ class SpanningRecordSerializationTest {
         while (!serializedRecords.isEmpty()) {
             SerializationTestType expected = serializedRecords.poll();
 
-            SerializationTestType actual = expected.getClass().newInstance();
+            SerializationTestType actual =
+                    expected.getClass().getDeclaredConstructor().newInstance();
             RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(actual);
 
             assertThat(result.isFullRecord()).isTrue();
@@ -268,7 +269,8 @@ class SpanningRecordSerializationTest {
                 deserializer.setNextBuffer(buffer);
                 assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
 
-                deserializer.getNextRecord(record.getClass().newInstance());
+                deserializer.getNextRecord(
+                        record.getClass().getDeclaredConstructor().newInstance());
 
                 // move buffers as long as necessary (for long records)
                 while ((serializationResult =
@@ -284,7 +286,8 @@ class SpanningRecordSerializationTest {
                     deserializer.setNextBuffer(buffer);
                     assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
 
-                    deserializer.getNextRecord(record.getClass().newInstance());
+                    deserializer.getNextRecord(
+                            record.getClass().getDeclaredConstructor().newInstance());
                 }
             }
         }

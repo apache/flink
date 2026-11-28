@@ -140,7 +140,7 @@ public abstract class TaskTestBase {
 
         DelimitedInputFormat<Record> format;
         try {
-            format = stubClass.newInstance();
+            format = stubClass.getDeclaredConstructor().newInstance();
         } catch (Throwable t) {
             throw new RuntimeException("Could not instantiate test input format.", t);
         }

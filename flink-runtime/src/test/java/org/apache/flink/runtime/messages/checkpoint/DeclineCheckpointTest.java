@@ -53,7 +53,10 @@ class DeclineCheckpointTest {
                                 className, className));
 
         Throwable userException =
-                (Throwable) Class.forName(className, false, userClassLoader).newInstance();
+                (Throwable)
+                        Class.forName(className, false, userClassLoader)
+                                .getDeclaredConstructor()
+                                .newInstance();
 
         CheckpointException checkpointException =
                 new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED, userException);

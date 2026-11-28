@@ -706,7 +706,7 @@ class ResettableExternalBufferTest {
         }
 
         for (int i = 0; i < number; i++) {
-            RowData data = clazz.newInstance();
+            RowData data = clazz.getDeclaredConstructor().newInstance();
             data.insertIntoBuffer(buffer);
             expected.add(data);
 
@@ -761,7 +761,7 @@ class ResettableExternalBufferTest {
         for (int i = 0; i < number; i++) {
             smallExpected.clear();
             for (int j = 0; j < step; j++) {
-                RowData data = clazz.newInstance();
+                RowData data = clazz.getDeclaredConstructor().newInstance();
                 data.insertIntoBuffer(buffer);
                 expected.add(data);
                 smallExpected.add(data);
@@ -872,7 +872,7 @@ class ResettableExternalBufferTest {
 
     private <T extends RowData> List<RowData> insertMultiColumn(
             ResettableExternalBuffer buffer, int cnt, Class<T> clazz)
-            throws IOException, IllegalAccessException, InstantiationException {
+            throws IOException, ReflectiveOperationException {
         ArrayList<RowData> expected = new ArrayList<>(cnt);
         insertMultiColumn(buffer, cnt, expected, clazz);
         buffer.complete();
@@ -881,9 +881,9 @@ class ResettableExternalBufferTest {
 
     private <T extends RowData> void insertMultiColumn(
             ResettableExternalBuffer buffer, int cnt, List<RowData> expected, Class<T> clazz)
-            throws IOException, IllegalAccessException, InstantiationException {
+            throws IOException, ReflectiveOperationException {
         for (int i = 0; i < cnt; i++) {
-            RowData data = clazz.newInstance();
+            RowData data = clazz.getDeclaredConstructor().newInstance();
             data.insertIntoBuffer(buffer);
             expected.add(data);
         }

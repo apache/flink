@@ -38,7 +38,7 @@ public class GeneratedFunctionWrapper<F extends Function> extends GeneratedFunct
     @Override
     public F newInstance(ClassLoader classLoader) {
         try {
-            return clazz.newInstance();
+            return clazz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new RuntimeException(
                     "Could not instantiate class " + clazz.getCanonicalName(), e);
