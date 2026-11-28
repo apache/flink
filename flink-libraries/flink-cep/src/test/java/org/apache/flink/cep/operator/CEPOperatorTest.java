@@ -989,6 +989,25 @@ class CEPOperatorTest {
     }
 
     @Test
+    void testCEPOperatorClearsExpiredNFAStateInProcessingTime() throws Exception {
+        final CepOperator<Event, Integer, Map<String, List<Event>>> operator =
+                getKeyedCepOperator(true);
+
+        try (final OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+                CepOperatorTestUtilities.getCepTestHarness(operator)) {
+            harness.open();
+            harness.setProcessingTime(1L);
+            harness.processElement(new StreamRecord<>(new Event(26, "start", 1.0)));
+
+            assertThat(operator.hasNonEmptyNFAState(26)).isTrue();
+
+            harness.setProcessingTime(20L);
+
+            assertThat(operator.hasNonEmptyNFAState(26)).isFalse();
+        }
+    }
+
+    @Test
     void testCEPOperatorSerializationWRocksDB() throws Exception {
         String rocksDbPath = tempFolder.getAbsolutePath();
         EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
