@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.kubernetes.artifact.DummyFsFactory
+org.apache.flink.kubernetes.highavailability.DegradableFileSystem$Factory

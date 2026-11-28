@@ -18,7 +18,13 @@
             <td><h5>application-result-store.storage-path</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Defines where application results should be stored. This should be an underlying file-system that provides read-after-write consistency. By default, this is <code class="highlighter-rouge">{high-availability.storageDir}/application-result-store/{high-availability.cluster-id}</code>.</td>
+            <td>Defines where application results should be stored. This should be an underlying file-system that provides read-after-write consistency. By default, this is <code class="highlighter-rouge">{high-availability.storageDir}/application-result-store/{high-availability.cluster-id}</code>. Only applies if <code class="highlighter-rouge">application-result-store.storage-type</code> is <code class="highlighter-rouge">FILE_SYSTEM</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>application-result-store.storage-type</h5></td>
+            <td style="word-wrap: break-word;">FILE_SYSTEM</td>
+            <td><p>Enum</p></td>
+            <td>Defines where the cluster application results are stored for persistence across leadership changes.<br /><br />Possible values:<ul><li>"FILE_SYSTEM": Entries are stored as files under the configured storage path.</li><li>"KUBERNETES": Entries are stored in a Kubernetes ConfigMap created by the cluster. Requires <code class="highlighter-rouge">high-availability.type</code> to be <code class="highlighter-rouge">KUBERNETES</code>.</li></ul></td>
         </tr>
     </tbody>
 </table>

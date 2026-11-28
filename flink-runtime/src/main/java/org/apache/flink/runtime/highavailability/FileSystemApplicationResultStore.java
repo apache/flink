@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -95,6 +96,14 @@ public class FileSystemApplicationResultStore extends AbstractThreadsafeApplicat
     public static FileSystemApplicationResultStore fromConfiguration(
             Configuration config, Executor ioExecutor) throws IOException {
         Preconditions.checkNotNull(config);
+        final ApplicationResultStoreOptions.StorageType storageType =
+                config.get(ApplicationResultStoreOptions.STORAGE_TYPE);
+        if (storageType != ApplicationResultStoreOptions.StorageType.FILE_SYSTEM) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "The configured high availability services do not support '%s' = %s.",
+                            ApplicationResultStoreOptions.STORAGE_TYPE.key(), storageType));
+        }
         final String arsStoragePath = config.get(ApplicationResultStoreOptions.STORAGE_PATH);
         final Path basePath;
 
