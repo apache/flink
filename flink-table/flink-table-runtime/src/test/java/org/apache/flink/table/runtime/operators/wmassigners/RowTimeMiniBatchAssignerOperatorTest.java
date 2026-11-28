@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -102,5 +103,26 @@ class RowTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTest
         List<Watermark> watermarks = extractWatermarks(output);
         assertThat(watermarks).hasSize(1);
         assertThat(watermarks.get(0)).isEqualTo(Watermark.MAX_WATERMARK);
+    }
+
+    @Test
+    void testBufferedWatermarkIsEmittedBeforeIdle() throws Exception {
+        final RowTimeMiniBatchAssignerOperator operator = new RowTimeMiniBatchAssignerOperator(50);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator);
+        testHarness.open();
+
+        testHarness.processWatermark(new Watermark(2));
+        testHarness.processWatermarkStatus(WatermarkStatus.IDLE);
+        testHarness.processWatermarkStatus(WatermarkStatus.ACTIVE);
+        testHarness.processWatermarkStatus(WatermarkStatus.IDLE);
+
+        // the buffered watermark is emitted once, before the input goes idle
+        assertThat(testHarness.getOutput())
+                .containsExactly(
+                        new Watermark(2),
+                        WatermarkStatus.IDLE,
+                        WatermarkStatus.ACTIVE,
+                        WatermarkStatus.IDLE);
     }
 }

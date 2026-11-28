@@ -83,7 +83,11 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
             if (streamElement.isRecord()) {
                 queueEntry = addRecord((StreamRecord<?>) streamElement);
             } else if (streamElement.isWatermark()) {
-                queueEntry = addWatermark((Watermark) streamElement);
+                queueEntry = addWatermark(new WatermarkQueueEntry<>((Watermark) streamElement));
+            } else if (streamElement.isWatermarkStatus()) {
+                queueEntry =
+                        addWatermark(
+                                new WatermarkStatusQueueEntry<>(streamElement.asWatermarkStatus()));
             } else {
                 throw new UnsupportedOperationException("Cannot enqueue " + streamElement);
             }
@@ -134,7 +138,11 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
         return newSegment;
     }
 
-    private StreamElementQueueEntry<OUT> addWatermark(Watermark watermark) {
+    /**
+     * Adds a watermark or a watermark status. Both are ordered with respect to the records before
+     * and after them, so they get a segment of their own.
+     */
+    private StreamElementQueueEntry<OUT> addWatermark(StreamElementQueueEntry<OUT> watermarkEntry) {
         Segment<OUT> watermarkSegment;
         if (!segments.isEmpty() && segments.getLast().isEmpty()) {
             // reuse already existing segment if possible (completely drained) or the new segment
@@ -145,7 +153,6 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
             watermarkSegment = addSegment(1);
         }
 
-        StreamElementQueueEntry<OUT> watermarkEntry = new WatermarkQueueEntry<>(watermark);
         watermarkSegment.add(watermarkEntry);
 
         // add a new segment for actual elements
