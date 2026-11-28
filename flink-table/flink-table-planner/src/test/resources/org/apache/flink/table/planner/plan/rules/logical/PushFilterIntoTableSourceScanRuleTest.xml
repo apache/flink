@@ -356,6 +356,63 @@ LogicalProject(ID=[$0], Timestamp=[$1], Result=[$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNestedFilterOnFunctionResult">
+    <Resource name="sql">
+      <![CDATA[SELECT s FROM NestedFunctionTable WHERE COALESCE(r1, r2).a.b = 'x']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(s=[$2])
++- LogicalFilter(condition=[=(COALESCE($0, $1).a.b, _UTF-16LE'x')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedFunctionTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(s=[$2])
++- LogicalFilter(condition=[=(COALESCE($0, $1).a.b, _UTF-16LE'x')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedFunctionTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedFilterOnFunctionResultMixedWithPushableFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT s FROM NestedFunctionTable WHERE COALESCE(r1, r2).a.b = 'x' AND r1.a.b = 'y']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(s=[$2])
++- LogicalFilter(condition=[AND(=(COALESCE($0, $1).a.b, _UTF-16LE'x'), =($0.a.b, _UTF-16LE'y'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedFunctionTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(s=[$2])
++- LogicalFilter(condition=[=(COALESCE($0, $1).a.b, _UTF-16LE'x')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedFunctionTable, filter=[=(r1.a.b, _UTF-16LE'y':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedFilterOnFunctionResultSingleLevel">
+    <Resource name="sql">
+      <![CDATA[SELECT s FROM NestedFunctionTable WHERE COALESCE(r1, r2).a IS NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(s=[$2])
++- LogicalFilter(condition=[IS NULL(COALESCE($0, $1).a)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedFunctionTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(s=[$2])
++- LogicalFilter(condition=[IS NULL(COALESCE($0, $1).a)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedFunctionTable]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestedFilterOnMapKey">
     <Resource name="sql">
       <![CDATA[SELECT * FROM NestedItemTable WHERE `Result`.`Mid`.data_map['item'].`value` = 3]]>
