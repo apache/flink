@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -43,15 +44,38 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.State
 /**
  * Implementation of {@link TaskMailbox} in a {@link java.util.concurrent.BlockingQueue} fashion and
  * tailored towards our use case with multiple writers and single reader.
+ *
+ * <p>Mails are stored in three containers:
+ *
+ * <ul>
+ *   <li>{@link #urgentQueue}: urgent mails ({@link MailboxExecutor.MailOptions#isUrgent()}) in
+ *       arrival order (FIFO), guarded by the lock.
+ *   <li>{@link #queue}: all other mails in arrival order, guarded by the lock.
+ *   <li>{@link #batch}: a bounded round of normal mails that was moved out of {@link #queue} by
+ *       {@link #createBatch()}; accessed by the mailbox thread only and therefore lock-free.
+ * </ul>
+ *
+ * <p>Mails are served in the order {@code urgentQueue}, {@code batch}, {@code queue}. Within each
+ * container the oldest mail with a sufficient priority goes first, so urgent mails of equal
+ * priority are FIFO among themselves, no matter which thread puts them or which method takes them;
+ * a priority take may skip an older urgent mail whose priority is below the requested one. Urgent
+ * mails are the only mails that may be taken from {@link #tryTakeFromBatch()} although they were
+ * not part of the batch when it was created. To keep a round of {@link #tryTakeFromBatch()} bounded
+ * (see {@link TaskMailbox}), the number of urgent mails it serves is limited by {@link
+ * #urgentBatchBudget}.
  */
 @ThreadSafe
 public class TaskMailboxImpl implements TaskMailbox {
     /** Lock for all concurrent ops. */
     private final ReentrantLock lock = new ReentrantLock();
 
-    /** Internal queue of mails. */
+    /** Internal queue of normal mails. */
     @GuardedBy("lock")
     private final Deque<Mail> queue = new ArrayDeque<>();
+
+    /** Internal queue of urgent mails in arrival order. */
+    @GuardedBy("lock")
+    private final Deque<Mail> urgentQueue = new ArrayDeque<>();
 
     /** Condition that is triggered when the mailbox is no longer empty. */
     @GuardedBy("lock")
@@ -65,16 +89,33 @@ public class TaskMailboxImpl implements TaskMailbox {
     @Nonnull private final Thread taskMailboxThread;
 
     /**
-     * The current batch of mails. A new batch can be created with {@link #createBatch()} and
-     * consumed with {@link #tryTakeFromBatch()}.
+     * The current batch of normal mails. A new batch can be created with {@link #createBatch()} and
+     * consumed with {@link #tryTakeFromBatch()}. Must only be accessed by the mailbox thread
+     * (except under the lock in {@link #drain()} and {@link #size()}).
      */
     private final Deque<Mail> batch = new ArrayDeque<>();
 
     /**
      * Performance optimization where hasNewMail == !queue.isEmpty(). Will not reflect the state of
-     * {@link #batch}.
+     * {@link #batch} or {@link #urgentQueue}.
      */
     private volatile boolean hasNewMail = false;
+
+    /**
+     * Performance optimization where hasNewUrgentMail == !urgentQueue.isEmpty(). It is the only
+     * additional volatile read on the take path if there are no urgent mails.
+     */
+    private volatile boolean hasNewUrgentMail = false;
+
+    /**
+     * The maximum number of urgent mails that {@link #tryTakeFromBatch()} may still serve in the
+     * current round: the number of urgent mails pending at {@link #createBatch()} plus the size of
+     * the batch. That lets urgent mails arriving during the round overtake the rest of the batch in
+     * normal operation, while a sustained stream of urgent mails can't prevent the round from
+     * ending. Remaining urgent mails are served in the next round (still in FIFO order). Must only
+     * be accessed by the mailbox thread.
+     */
+    private int urgentBatchBudget = 0;
 
     public TaskMailboxImpl(@Nonnull final Thread taskMailboxThread) {
         this.taskMailboxThread = taskMailboxThread;
@@ -93,7 +134,7 @@ public class TaskMailboxImpl implements TaskMailbox {
     @Override
     public boolean hasMail() {
         checkIsMailboxThread();
-        return !batch.isEmpty() || hasNewMail;
+        return !batch.isEmpty() || hasNewMail || hasNewUrgentMail;
     }
 
     @Override
@@ -101,7 +142,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
-            return batch.size() + queue.size();
+            return batch.size() + queue.size() + urgentQueue.size();
         } finally {
             lock.unlock();
         }
@@ -121,6 +162,10 @@ public class TaskMailboxImpl implements TaskMailbox {
         checkIsMailboxThread();
         checkTakeStateConditions();
 
+        Mail urgentHead = takeUrgentIfPending(priority, ignoreDeferrable);
+        if (urgentHead != null) {
+            return Optional.of(urgentHead);
+        }
         Mail head = takeOrNull(batch, priority, ignoreDeferrable);
         if (head != null) {
             return Optional.of(head);
@@ -131,12 +176,11 @@ public class TaskMailboxImpl implements TaskMailbox {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
-            final Mail value = takeOrNull(queue, priority, ignoreDeferrable);
-            if (value == null) {
-                return Optional.empty();
+            final Mail urgent = takeUrgentLocked(priority, ignoreDeferrable);
+            if (urgent != null) {
+                return Optional.of(urgent);
             }
-            hasNewMail = !queue.isEmpty();
-            return Optional.ofNullable(value);
+            return Optional.ofNullable(takeNormalLocked(priority, ignoreDeferrable));
         } finally {
             lock.unlock();
         }
@@ -147,6 +191,10 @@ public class TaskMailboxImpl implements TaskMailbox {
         checkIsMailboxThread();
         checkTakeStateConditions();
 
+        Mail urgentHead = takeUrgentIfPending(priority, false);
+        if (urgentHead != null) {
+            return urgentHead;
+        }
         Mail head = takeOrNull(batch, priority, false);
         if (head != null) {
             return head;
@@ -154,13 +202,18 @@ public class TaskMailboxImpl implements TaskMailbox {
         final ReentrantLock lock = this.lock;
         lock.lockInterruptibly();
         try {
-            Mail headMail;
-            while ((headMail = takeOrNull(queue, priority, false)) == null) {
+            while (true) {
+                Mail urgent = takeUrgentLocked(priority, false);
+                if (urgent != null) {
+                    return urgent;
+                }
+                Mail mail = takeNormalLocked(priority, false);
+                if (mail != null) {
+                    return mail;
+                }
                 // to ease debugging
                 notEmpty.await(1, TimeUnit.SECONDS);
             }
-            hasNewMail = !queue.isEmpty();
-            return headMail;
         } finally {
             lock.unlock();
         }
@@ -171,30 +224,35 @@ public class TaskMailboxImpl implements TaskMailbox {
     @Override
     public boolean createBatch() {
         checkIsMailboxThread();
-        if (!hasNewMail) {
-            // batch is usually depleted by previous MailboxProcessor#runMainLoop
-            // however, putFirst may add a message directly to the batch if called from mailbox
-            // thread
-            return !batch.isEmpty();
-        }
-        final ReentrantLock lock = this.lock;
-        lock.lock();
-        try {
-            Mail mail;
-            while ((mail = queue.pollFirst()) != null) {
-                batch.addLast(mail);
+        int pendingUrgent = 0;
+        if (hasNewMail || hasNewUrgentMail) {
+            final ReentrantLock lock = this.lock;
+            lock.lock();
+            try {
+                batch.addAll(queue);
+                queue.clear();
+                hasNewMail = false;
+                pendingUrgent = urgentQueue.size();
+            } finally {
+                lock.unlock();
             }
-            hasNewMail = false;
-            return !batch.isEmpty();
-        } finally {
-            lock.unlock();
         }
+        // pending urgent mails are served by tryTakeFromBatch, too
+        urgentBatchBudget = pendingUrgent + batch.size();
+        return !batch.isEmpty() || pendingUrgent > 0;
     }
 
     @Override
     public Optional<Mail> tryTakeFromBatch() {
         checkIsMailboxThread();
         checkTakeStateConditions();
+        if (urgentBatchBudget > 0) {
+            Mail urgent = takeUrgentIfPending(Integer.MIN_VALUE, false);
+            if (urgent != null) {
+                urgentBatchBudget--;
+                return Optional.of(urgent);
+            }
+        }
         return Optional.ofNullable(batch.pollFirst());
     }
 
@@ -202,38 +260,71 @@ public class TaskMailboxImpl implements TaskMailbox {
 
     @Override
     public void put(@Nonnull Mail mail) {
+        final boolean urgent = mail.getMailOptions().isUrgent();
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
             checkPutStateConditions();
-            queue.addLast(mail);
-            hasNewMail = true;
+            if (urgent) {
+                final boolean wasEmpty = urgentQueue.isEmpty();
+                urgentQueue.addLast(mail);
+                if (wasEmpty) {
+                    hasNewUrgentMail = true;
+                }
+            } else {
+                final boolean wasEmpty = queue.isEmpty();
+                queue.addLast(mail);
+                if (wasEmpty) {
+                    hasNewMail = true;
+                }
+            }
             notEmpty.signal();
         } finally {
             lock.unlock();
         }
     }
 
-    @Override
-    public void putFirst(@Nonnull Mail mail) {
-        if (isMailboxThread()) {
-            checkPutStateConditions();
-            batch.addFirst(mail);
-        } else {
-            final ReentrantLock lock = this.lock;
-            lock.lock();
-            try {
-                checkPutStateConditions();
-                queue.addFirst(mail);
-                hasNewMail = true;
-                notEmpty.signal();
-            } finally {
-                lock.unlock();
-            }
+    // ------------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Takes the oldest urgent mail with a sufficient priority, if any, without acquiring the lock
+     * when no urgent mail is pending according to the volatile {@link #hasNewUrgentMail}.
+     */
+    @Nullable
+    private Mail takeUrgentIfPending(int priority, boolean ignoreDeferrable) {
+        return hasNewUrgentMail ? takeUrgentOrNull(priority, ignoreDeferrable) : null;
+    }
+
+    @Nullable
+    private Mail takeUrgentOrNull(int priority, boolean ignoreDeferrable) {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return takeUrgentLocked(priority, ignoreDeferrable);
+        } finally {
+            lock.unlock();
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------------------
+    @GuardedBy("lock")
+    @Nullable
+    private Mail takeUrgentLocked(int priority, boolean ignoreDeferrable) {
+        final Mail mail = takeOrNull(urgentQueue, priority, ignoreDeferrable);
+        if (mail != null && urgentQueue.isEmpty()) {
+            hasNewUrgentMail = false;
+        }
+        return mail;
+    }
+
+    @GuardedBy("lock")
+    @Nullable
+    private Mail takeNormalLocked(int priority, boolean ignoreDeferrable) {
+        final Mail mail = takeOrNull(queue, priority, ignoreDeferrable);
+        if (mail != null && queue.isEmpty()) {
+            hasNewMail = false;
+        }
+        return mail;
+    }
 
     @Nullable
     private Mail takeOrNull(Deque<Mail> queue, int priority, boolean ignoreDeferrable) {
@@ -254,15 +345,21 @@ public class TaskMailboxImpl implements TaskMailbox {
         return null;
     }
 
+    /** Drains all mails in the order in which they would be taken: urgent, batch, normal. */
     @Override
     public List<Mail> drain() {
-        List<Mail> drainedMails = new ArrayList<>(batch);
-        batch.clear();
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
+            List<Mail> drainedMails =
+                    new ArrayList<>(urgentQueue.size() + batch.size() + queue.size());
+            drainedMails.addAll(urgentQueue);
+            drainedMails.addAll(batch);
             drainedMails.addAll(queue);
+            urgentQueue.clear();
+            batch.clear();
             queue.clear();
+            hasNewUrgentMail = false;
             hasNewMail = false;
             return drainedMails;
         } finally {

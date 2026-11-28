@@ -27,5 +27,15 @@ package org.apache.flink.runtime.operators.coordination;
  */
 public interface OperatorEventHandler {
 
+    /**
+     * Handles an event sent by the {@link OperatorCoordinator}.
+     *
+     * <p>Events are handled in the order in which the coordinator sent them, and before any
+     * checkpoint that the coordinator takes after sending them. They are not ordered with respect
+     * to other work of the task, such as timers or checkpoint notifications: for example, an event
+     * that the coordinator sends from {@link OperatorCoordinator#notifyCheckpointComplete} may be
+     * handled before the operator's own {@code notifyCheckpointComplete} call for the same
+     * checkpoint.
+     */
     void handleOperatorEvent(OperatorEvent evt);
 }

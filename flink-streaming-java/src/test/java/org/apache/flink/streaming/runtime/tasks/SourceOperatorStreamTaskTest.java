@@ -90,6 +90,10 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
     private static final OperatorID OPERATOR_ID = new OperatorID();
     private static final int NUM_RECORDS = 10;
+
+    /** Upper bound of mailbox steps to wait for a queued mail before failing the test. */
+    private static final int MAX_MAILBOX_STEPS = 100;
+
     public static final CheckpointStorageLocationReference SAVEPOINT_LOCATION =
             new CheckpointStorageLocationReference("Savepoint".getBytes());
     public static final CheckpointStorageLocationReference CHECKPOINT_LOCATION =
@@ -340,6 +344,72 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             assertThat(triggerResult.isDone()).isTrue();
             assertThat(triggerResult.get()).isTrue();
             assertThat(checkpointCompleted.isDone()).isTrue();
+        }
+    }
+
+    static Stream<CheckpointOptions> provideCheckpointOptionsForQueuedAddSplitEvent() {
+        return Stream.of(
+                CheckpointOptions.alignedNoTimeout(CheckpointType.CHECKPOINT, CHECKPOINT_LOCATION),
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, CHECKPOINT_LOCATION));
+    }
+
+    /**
+     * An {@link AddSplitEvent} queued in the mailbox before a checkpoint trigger must be reflected
+     * in the reader state of that checkpoint, because the enumerator checkpoint already records the
+     * split as assigned.
+     */
+    @ParameterizedTest
+    @MethodSource("provideCheckpointOptionsForQueuedAddSplitEvent")
+    void testQueuedAddSplitEventIsIncludedInCheckpoint(CheckpointOptions checkpointOptions)
+            throws Exception {
+        final long checkpointId = 1;
+        final MockSource source = new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1);
+        TaskStateSnapshot snapshot;
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                createTestHarness(source, checkpointId, null)) {
+            assertThat(getSourceReaderFromTask(testHarness).getAssignedSplits()).isEmpty();
+
+            // Queue the split assignment without processing it (busy task thread).
+            AddSplitEvent<MockSourceSplit> addSplitEvent =
+                    new AddSplitEvent<>(
+                            Collections.singletonList(new MockSourceSplit(0, 0)),
+                            new MockSourceSplitSerializer());
+            testHarness
+                    .getStreamTask()
+                    .dispatchOperatorEvent(OPERATOR_ID, new SerializedValue<>(addSplitEvent));
+
+            // Trigger the checkpoint after the event was queued.
+            testHarness.taskStateManager.getWaitForReportLatch().reset();
+            Future<Boolean> checkpointFuture =
+                    testHarness
+                            .getStreamTask()
+                            .triggerCheckpointAsync(
+                                    new CheckpointMetaData(checkpointId, checkpointId),
+                                    checkpointOptions);
+            getSourceReaderFromTask(testHarness).markAvailable();
+            processUntil(testHarness, checkpointFuture::isDone);
+            assertThat(checkpointFuture.get()).isTrue();
+            testHarness.taskStateManager.getWaitForReportLatch().await();
+
+            // The event is processed eventually, in any case. The bound makes a dropped event fail
+            // the test instead of spinning forever.
+            for (int step = 0;
+                    step < MAX_MAILBOX_STEPS
+                            && getSourceReaderFromTask(testHarness).getAssignedSplits().isEmpty();
+                    step++) {
+                testHarness.getStreamTask().runMailboxStep();
+            }
+            assertThat(getSourceReaderFromTask(testHarness).getAssignedSplits()).isNotEmpty();
+            assertThat(testHarness.taskStateManager.getReportedCheckpointId())
+                    .isEqualTo(checkpointId);
+            snapshot = testHarness.taskStateManager.getLastJobManagerTaskStateSnapshot();
+        }
+
+        try (StreamTaskMailboxTestHarness<Integer> restored =
+                createTestHarness(source, checkpointId, snapshot)) {
+            assertThat(getSourceReaderFromTask(restored).getAssignedSplits())
+                    .extracting(MockSourceSplit::splitId)
+                    .containsExactly(new MockSourceSplit(0, 0).splitId());
         }
     }
 

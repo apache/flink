@@ -104,6 +104,23 @@ public interface MailboxExecutor {
         static MailOptions deferrable() {
             return MailOptionsImpl.DEFERRABLE;
         }
+
+        /**
+         * Mark this mail as urgent.
+         *
+         * <p>Urgent mails are executed before normal mails, and in FIFO order among themselves. For
+         * example, handling unaligned checkpoint barriers, operator events, or control mails is
+         * expected to happen as soon as possible.
+         */
+        static MailOptions urgent() {
+            return MailOptionsImpl.URGENT;
+        }
+
+        /** Whether this mail is deferrable, see {@link #deferrable()}. */
+        boolean isDeferrable();
+
+        /** Whether this mail is urgent, see {@link #urgent()}. */
+        boolean isUrgent();
     }
 
     /**

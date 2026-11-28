@@ -73,6 +73,8 @@ import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -100,6 +102,7 @@ import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
@@ -124,12 +127,15 @@ import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSource
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -147,6 +153,7 @@ import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.TestingUncaughtExceptionHandler;
@@ -154,10 +161,12 @@ import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -176,6 +185,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -188,6 +198,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
@@ -1561,6 +1572,146 @@ public class StreamTaskTest {
 
             // then: The task doesn't hang but finished with FAILED state.
             assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
+        }
+    }
+
+    /** Aligned-checkpoint timeout used by the {@code alignedWithTimeout} checkpoint options. */
+    private static final long ALIGNED_CHECKPOINT_TIMEOUT_MS = 10_000L;
+
+    /** Upper bound of mailbox steps to wait for the checkpoint trigger to complete. */
+    private static final int MAX_MAILBOX_STEPS = 100;
+
+    static Stream<Named<CheckpointOptions>> provideCheckpointOptionsForOperatorEventOrdering() {
+        return Stream.of(
+                Named.of(
+                        "alignedNoTimeout",
+                        CheckpointOptions.alignedNoTimeout(
+                                CheckpointType.CHECKPOINT, getDefault())),
+                Named.of(
+                        "alignedWithTimeout",
+                        CheckpointOptions.alignedWithTimeout(
+                                CheckpointType.CHECKPOINT,
+                                getDefault(),
+                                ALIGNED_CHECKPOINT_TIMEOUT_MS)),
+                Named.of(
+                        "unaligned",
+                        CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault())));
+    }
+
+    /**
+     * Operator events dispatched before a checkpoint trigger must be applied before the operator is
+     * snapshotted, including the case of an urgent (unaligned) trigger. Events are urgent mails too
+     * so that they keep FIFO order with the urgent trigger.
+     */
+    @ParameterizedTest
+    @MethodSource("provideCheckpointOptionsForOperatorEventOrdering")
+    void testOperatorEventsAreAppliedBeforeCheckpointTrigger(CheckpointOptions checkpointOptions)
+            throws Exception {
+        final OperatorID operatorId = new OperatorID();
+        final List<String> invocations = EventRecordingOperator.INVOCATIONS;
+        invocations.clear();
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new EventRecordingOperatorFactory(), operatorId)
+                        .build()) {
+            harness.setAutoProcess(false);
+            harness.processAll();
+
+            harness.streamTask.dispatchOperatorEvent(operatorId, serializedEvent("event-1"));
+            // A normal mail interleaved between urgent events must not reorder them.
+            harness.streamTask.notifyCheckpointCompleteAsync(100);
+            harness.streamTask.dispatchOperatorEvent(operatorId, serializedEvent("event-2"));
+            CompletableFuture<Boolean> triggered =
+                    harness.streamTask.triggerCheckpointAsync(
+                            new CheckpointMetaData(1L, 1L), checkpointOptions);
+            harness.streamTask.dispatchOperatorEvent(operatorId, serializedEvent("event-3"));
+
+            // The ordering relies on events and triggers having the same priority: an operator
+            // yielding at a priority in between must not run the trigger before the events.
+            for (int priority : new int[] {MAX_PRIORITY, 1, 0}) {
+                MailboxExecutor executor =
+                        harness.streamTask.getMailboxExecutorFactory().createExecutor(priority);
+                while (executor.tryYield()) {
+                    if (invocations.contains("snapshot")) {
+                        assertThat(invocations).startsWith("event-1", "event-2", "snapshot");
+                    }
+                }
+            }
+
+            for (int i = 0; i < MAX_MAILBOX_STEPS && !triggered.isDone(); i++) {
+                harness.streamTask.runMailboxStep();
+            }
+            assertThat(triggered).isDone();
+            harness.processAll();
+
+            if (checkpointOptions.isUnalignedCheckpoint()) {
+                // Both are urgent, hence FIFO.
+                assertThat(invocations)
+                        .containsExactly("event-1", "event-2", "snapshot", "event-3");
+            } else {
+                // An aligned trigger is a normal mail and is overtaken by later events; in
+                // production the coordinator holds back events dispatched after its checkpoint
+                // until the task acknowledges the checkpoint.
+                assertThat(invocations).containsSubsequence("event-1", "event-2", "snapshot");
+            }
+        }
+    }
+
+    private static SerializedValue<OperatorEvent> serializedEvent(String name) throws IOException {
+        return new SerializedValue<>(new NamedOperatorEvent(name));
+    }
+
+    private static class NamedOperatorEvent implements OperatorEvent {
+        private static final long serialVersionUID = 1L;
+        private final String name;
+
+        private NamedOperatorEvent(String name) {
+            this.name = name;
+        }
+    }
+
+    private static class EventRecordingOperatorFactory extends AbstractStreamOperatorFactory<String>
+            implements OneInputStreamOperatorFactory<String, String> {
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            EventRecordingOperator operator = new EventRecordingOperator(parameters);
+            parameters
+                    .getOperatorEventDispatcher()
+                    .registerEventHandler(parameters.getStreamConfig().getOperatorID(), operator);
+            return (T) operator;
+        }
+
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return EventRecordingOperator.class;
+        }
+    }
+
+    private static class EventRecordingOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String>, OperatorEventHandler {
+        // static: the operator factory is serialized, so instances do not share state with the test
+        static final List<String> INVOCATIONS = new CopyOnWriteArrayList<>();
+
+        private EventRecordingOperator(StreamOperatorParameters<String> parameters) {
+            super(parameters);
+        }
+
+        @Override
+        public void processElement(StreamRecord<String> element) {}
+
+        @Override
+        public void handleOperatorEvent(OperatorEvent evt) {
+            INVOCATIONS.add(((NamedOperatorEvent) evt).name);
+        }
+
+        @Override
+        public void snapshotState(StateSnapshotContext context) throws Exception {
+            super.snapshotState(context);
+            INVOCATIONS.add("snapshot");
         }
     }
 
