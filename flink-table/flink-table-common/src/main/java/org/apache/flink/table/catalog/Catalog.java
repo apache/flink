@@ -1042,6 +1042,26 @@ public interface Catalog {
     }
 
     /**
+     * Rename an existing connection.
+     *
+     * @param connectionPath Path of the connection to be renamed
+     * @param newConnectionName the new name of the connection
+     * @param ignoreIfNotExists Flag to specify behavior when the connection does not exist: if set
+     *     to false, throw an exception, if set to true, do nothing.
+     * @throws ConnectionNotExistException if the connection does not exist
+     * @throws ConnectionAlreadyExistException if a connection with the new name already exists
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void renameConnection(
+            ObjectPath connectionPath, String newConnectionName, boolean ignoreIfNotExists)
+            throws ConnectionNotExistException, ConnectionAlreadyExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "renameConnection(ObjectPath, String, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
      * Drop a connection.
      *
      * @param connectionPath Path of the connection to be dropped
