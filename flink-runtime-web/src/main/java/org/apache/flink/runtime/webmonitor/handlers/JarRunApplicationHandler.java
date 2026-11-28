@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.application.PackagedProgramApplication
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
@@ -105,7 +106,12 @@ public class JarRunApplicationHandler
                 getSavepointRestoreSettings(request, effectiveConfiguration),
                 effectiveConfiguration);
 
-        final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
+        // The application builds and closes its own program, so this one only validates the
+        // request.
+        final PackagedProgramDescriptor programDescriptor;
+        try (PackagedProgram program = context.toPackagedProgram(effectiveConfiguration)) {
+            programDescriptor = program.getDescriptor();
+        }
 
         ApplicationID applicationId = context.getApplicationId().orElse(ApplicationID.generate());
 
@@ -129,7 +135,7 @@ public class JarRunApplicationHandler
                             PackagedProgramApplication application =
                                     new PackagedProgramApplication(
                                             applicationId,
-                                            program,
+                                            programDescriptor,
                                             effectiveConfiguration,
                                             Integer.MAX_VALUE,
                                             1,

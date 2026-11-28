@@ -162,18 +162,6 @@ public class JarHandlerUtils {
                         PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
             }
             configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
-
-            final PackagedProgram program = toPackagedProgram(configuration);
-            ConfigUtils.encodeCollectionToConfig(
-                    configuration,
-                    PipelineOptions.JARS,
-                    program.getJobJarAndDependencies(),
-                    URL::toString);
-            ConfigUtils.encodeCollectionToConfig(
-                    configuration,
-                    PipelineOptions.CLASSPATHS,
-                    program.getClasspaths(),
-                    URL::toString);
         }
 
         public JobGraph toJobGraph(
@@ -188,6 +176,12 @@ public class JarHandlerUtils {
             }
         }
 
+        /**
+         * Builds the program and sets {@link PipelineOptions#JARS} and {@link
+         * PipelineOptions#CLASSPATHS} of the given configuration to its jars and classpaths. The
+         * jars include the nested libraries extracted by the program, which are deleted when the
+         * caller closes it.
+         */
         public PackagedProgram toPackagedProgram(Configuration configuration) {
             checkNotNull(configuration);
 
@@ -198,11 +192,24 @@ public class JarHandlerUtils {
                                 HttpResponseStatus.BAD_REQUEST));
             }
 
+            final PackagedProgram program;
             try {
-                return initPackagedProgramBuilder(configuration).build();
+                program = initPackagedProgramBuilder(configuration).build();
             } catch (final ProgramInvocationException e) {
                 throw new CompletionException(e);
             }
+
+            ConfigUtils.encodeCollectionToConfig(
+                    configuration,
+                    PipelineOptions.JARS,
+                    program.getJobJarAndDependencies(),
+                    URL::toString);
+            ConfigUtils.encodeCollectionToConfig(
+                    configuration,
+                    PipelineOptions.CLASSPATHS,
+                    program.getClasspaths(),
+                    URL::toString);
+            return program;
         }
 
         @VisibleForTesting
