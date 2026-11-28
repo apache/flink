@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.WatermarkEvent;
@@ -72,7 +72,7 @@ public class RecordWriterOutput<OUT>
 
     // Uses a dummy counter here to avoid checking the existence of numRecordsOut on the
     // per-record path.
-    private Counter numRecordsOut = new SimpleCounter();
+    private Counter numRecordsOut = new SimpleMonotonicCounter();
 
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(

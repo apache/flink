@@ -44,16 +44,16 @@ public class InternalOperatorIOMetricGroup extends ProxyMetricGroup<InternalOper
 
     public InternalOperatorIOMetricGroup(InternalOperatorMetricGroup parentMetricGroup) {
         super(parentMetricGroup);
-        numRecordsIn = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_IN);
-        numRecordsOut = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_OUT);
+        numRecordsIn = parentMetricGroup.monotonicCounter(MetricNames.IO_NUM_RECORDS_IN);
+        numRecordsOut = parentMetricGroup.monotonicCounter(MetricNames.IO_NUM_RECORDS_OUT);
         numRecordsInRate =
                 parentMetricGroup.meter(
                         MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
         numRecordsOutRate =
                 parentMetricGroup.meter(
                         MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
-        numBytesIn = parentMetricGroup.counter(MetricNames.IO_NUM_BYTES_IN);
-        numBytesOut = parentMetricGroup.counter(MetricNames.IO_NUM_BYTES_OUT);
+        numBytesIn = parentMetricGroup.monotonicCounter(MetricNames.IO_NUM_BYTES_IN);
+        numBytesOut = parentMetricGroup.monotonicCounter(MetricNames.IO_NUM_BYTES_OUT);
         parentMetricGroup.meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
         parentMetricGroup.meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
     }
