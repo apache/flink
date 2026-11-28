@@ -37,7 +37,7 @@ import static org.apache.flink.table.functions.definitions.DeduplicateDefinition
  * which is held in the {@code current} state to produce them. The input carries no -U.
  */
 @Internal
-public class DeduplicateKeyedRowFunction extends DeduplicateUpdatingFunctionBase {
+public class DeduplicateKeyedRowFunction extends DeduplicateRowFunctionBase {
 
     private static final long serialVersionUID = 1L;
 

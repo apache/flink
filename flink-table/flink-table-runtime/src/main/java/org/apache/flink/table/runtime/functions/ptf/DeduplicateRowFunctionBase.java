@@ -38,9 +38,9 @@ import java.util.LinkedHashMap;
 
 import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 
-/** Base class of the {@link Deduplicate} implementations for updating input. */
+/** Base class of the {@link Deduplicate} implementations that can retract a row they emitted. */
 @Internal
-abstract class DeduplicateUpdatingFunctionBase extends DeduplicateFunctionBase {
+abstract class DeduplicateRowFunctionBase extends DeduplicateFunctionBase {
 
     private static final long serialVersionUID = 1L;
 
@@ -56,7 +56,7 @@ abstract class DeduplicateUpdatingFunctionBase extends DeduplicateFunctionBase {
 
     private transient RowData emptyRow;
 
-    DeduplicateUpdatingFunctionBase(
+    DeduplicateRowFunctionBase(
             final SpecializedContext context,
             final LinkedHashMap<String, StateTypeStrategy> stateStrategies) {
         super(context, stateStrategies);

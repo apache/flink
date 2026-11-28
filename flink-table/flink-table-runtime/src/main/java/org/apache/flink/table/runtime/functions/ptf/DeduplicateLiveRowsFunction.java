@@ -53,7 +53,7 @@ import static org.apache.flink.table.functions.definitions.DeduplicateDefinition
  * rows of a key. When the kept row is retracted, the next one is found among the live rows.
  */
 @Internal
-public class DeduplicateLiveRowsFunction extends DeduplicateUpdatingFunctionBase {
+public class DeduplicateLiveRowsFunction extends DeduplicateRowFunctionBase {
 
     private static final long serialVersionUID = 1L;
 

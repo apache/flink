@@ -36,7 +36,7 @@ import java.util.LinkedHashMap;
  * to another key.
  */
 @Internal
-public class DeduplicatePassThroughFunction extends DeduplicateUpdatingFunctionBase {
+public class DeduplicatePassThroughFunction extends DeduplicateRowFunctionBase {
 
     private static final long serialVersionUID = 1L;
 
