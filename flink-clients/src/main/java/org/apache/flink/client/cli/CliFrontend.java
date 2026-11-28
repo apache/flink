@@ -38,8 +38,10 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.apache.flink.client.program.artifact.ArtifactFetchManager;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -56,6 +58,7 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -65,11 +68,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -78,8 +85,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -118,6 +127,11 @@ public class CliFrontend {
     private final Options customCommandLineOptions;
 
     private final ClusterClientServiceLoader clusterClientServiceLoader;
+
+    /** Job JARs fetched from a remote URI, keyed by that URI; deleted after each action. */
+    private final Map<String, File> fetchedJobJars = new HashMap<>();
+
+    private final List<File> fetchedJobJarDirs = new ArrayList<>();
 
     public CliFrontend(Configuration configuration, List<CustomCommandLine> customCommandLines) {
         this(configuration, new DefaultClusterClientServiceLoader(), customCommandLines);
@@ -219,15 +233,20 @@ public class CliFrontend {
         } else {
             final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-            final List<URL> jobJars = getJobJarAndDependencies(programOptions);
+            try {
+                final List<URL> jobJars =
+                        getJobJarAndDependencies(programOptions, effectiveConfiguration);
 
-            updateEffectiveConfiguration(effectiveConfiguration, programOptions, jobJars);
+                updateEffectiveConfiguration(effectiveConfiguration, programOptions, jobJars);
 
-            LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+                LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
-            try (PackagedProgram program =
-                    getPackagedProgram(programOptions, effectiveConfiguration)) {
-                executeProgram(effectiveConfiguration, program);
+                try (PackagedProgram program =
+                        getPackagedProgram(programOptions, effectiveConfiguration)) {
+                    executeProgram(effectiveConfiguration, program);
+                }
+            } finally {
+                deleteFetchedJobJars();
             }
         }
     }
@@ -247,13 +266,13 @@ public class CliFrontend {
     }
 
     /** Get all provided libraries needed to run the program from the ProgramOptions. */
-    private List<URL> getJobJarAndDependencies(ProgramOptions programOptions)
-            throws CliArgsException {
+    private List<URL> getJobJarAndDependencies(
+            ProgramOptions programOptions, Configuration configuration) throws CliArgsException {
         String entryPointClass = programOptions.getEntryPointClassName();
         String jarFilePath = programOptions.getJarFilePath();
 
         try {
-            File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
+            File jarFile = jarFilePath != null ? getJarFile(jarFilePath, configuration) : null;
             return PackagedProgram.getJobJarAndDependencies(jarFile, entryPointClass);
         } catch (FileNotFoundException | ProgramInvocationException e) {
             throw new CliArgsException(
@@ -342,7 +361,7 @@ public class CliFrontend {
             updateEffectiveConfiguration(
                     effectiveConfiguration,
                     programOptions,
-                    getJobJarAndDependencies(programOptions));
+                    getJobJarAndDependencies(programOptions, effectiveConfiguration));
 
             program = buildProgram(programOptions, effectiveConfiguration);
 
@@ -379,6 +398,7 @@ public class CliFrontend {
             if (program != null) {
                 program.close();
             }
+            deleteFetchedJobJars();
         }
     }
 
@@ -1044,7 +1064,7 @@ public class CliFrontend {
 
         // Get assembler class
         String entryPointClass = runOptions.getEntryPointClassName();
-        File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
+        File jarFile = jarFilePath != null ? getJarFile(jarFilePath, configuration) : null;
 
         return PackagedProgram.newBuilder()
                 .setJarFile(jarFile)
@@ -1057,14 +1077,22 @@ public class CliFrontend {
     }
 
     /**
-     * Gets the JAR file from the path.
+     * Gets the JAR file from the path. A path with a URI scheme (e.g. {@code s3://}, {@code
+     * hdfs://}, {@code https://}) is fetched to a local temporary directory first, using the same
+     * {@link ArtifactFetchManager} as Application Mode.
      *
-     * @param jarFilePath The path of JAR file
+     * @param jarFilePath The path or URI of JAR file
+     * @param configuration The configuration used to fetch a remote JAR file
      * @return The JAR file
-     * @throws FileNotFoundException The JAR file does not exist.
+     * @throws FileNotFoundException The JAR file does not exist or could not be fetched.
      */
-    private File getJarFile(String jarFilePath) throws FileNotFoundException {
+    private File getJarFile(String jarFilePath, Configuration configuration)
+            throws FileNotFoundException {
         File jarFile = new File(jarFilePath);
+        // An existing local file wins, so a relative path such as "build:job.jar" keeps working.
+        if (!jarFile.exists() && hasUriScheme(jarFilePath)) {
+            return fetchJobJar(jarFilePath, configuration);
+        }
         // Check if JAR file exists
         if (!jarFile.exists()) {
             throw new FileNotFoundException("JAR file does not exist: " + jarFile);
@@ -1072,6 +1100,105 @@ public class CliFrontend {
             throw new FileNotFoundException("JAR file is not a file: " + jarFile);
         }
         return jarFile;
+    }
+
+    @VisibleForTesting
+    static boolean hasUriScheme(String jarFilePath) {
+        try {
+            String scheme = new URI(jarFilePath).getScheme();
+            // A single letter is a Windows drive (C:\...), not a scheme.
+            return scheme != null && scheme.length() > 1;
+        } catch (URISyntaxException e) {
+            // Not a valid URI (e.g. a local path with spaces): keep treating it as a local path.
+            return false;
+        }
+    }
+
+    private File fetchJobJar(String jarUri, Configuration configuration)
+            throws FileNotFoundException {
+        // The JAR is opened more than once per action (dependencies, then the program).
+        File fetched = fetchedJobJars.get(jarUri);
+        if (fetched != null) {
+            return fetched;
+        }
+        URI uri = URI.create(jarUri);
+        if (uri.getPath() == null || uri.getPath().isEmpty() || uri.getPath().endsWith("/")) {
+            throw new FileNotFoundException("JAR URI does not name a file: " + jarUri);
+        }
+        try {
+            fetched = fetch(jarUri, uri.getScheme(), configuration);
+        } catch (Exception e) {
+            FileNotFoundException fileNotFound =
+                    new FileNotFoundException(
+                            "Could not fetch JAR file " + jarUri + ": " + e.getMessage());
+            fileNotFound.initCause(e);
+            throw fileNotFound;
+        }
+        fetchedJobJars.put(jarUri, fetched);
+        return fetched;
+    }
+
+    private File fetch(String jarUri, String scheme, Configuration configuration) throws Exception {
+        if ("local".equals(scheme)) {
+            // Used in place, nothing to fetch or delete.
+            return new ArtifactFetchManager(configuration).fetchArtifacts(jarUri, null).getJobJar();
+        }
+        // HTTP has no modification time to tell whether a cached copy is still current.
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            Optional<JobJarCache> cache =
+                    JobJarCache.open(ConfigurationUtils.parseTempDirectories(configuration)[0]);
+            if (cache.isPresent()) {
+                Optional<File> cached = cache.get().get(jarUri, configuration);
+                if (cached.isPresent()) {
+                    return cached.get();
+                }
+            }
+        }
+        File fetched =
+                new ArtifactFetchManager(
+                                configuration,
+                                createFetchDirectory(configuration).getAbsolutePath())
+                        .fetchArtifacts(jarUri, null)
+                        .getJobJar();
+        // Also removed if the CLI is interrupted while an attached job is running.
+        fetched.deleteOnExit();
+        LOG.info("Fetched job JAR {} to {}.", jarUri, fetched);
+        return fetched;
+    }
+
+    /**
+     * Creates a new directory under the first {@code io.tmp.dirs} entry. A fresh directory per
+     * action is needed because ArtifactFetchManager reuses a file that already exists under the
+     * same name, which would run a stale JAR after the remote one changed.
+     */
+    private File createFetchDirectory(Configuration configuration) throws FileNotFoundException {
+        String tmpDir = ConfigurationUtils.parseTempDirectories(configuration)[0];
+        try {
+            File dir = Files.createTempDirectory(Paths.get(tmpDir), "flink-cli-job-jar-").toFile();
+            dir.deleteOnExit();
+            fetchedJobJarDirs.add(dir);
+            return dir;
+        } catch (IOException e) {
+            FileNotFoundException fileNotFound =
+                    new FileNotFoundException(
+                            String.format(
+                                    "Could not create a directory under '%s' (%s) to fetch the JAR"
+                                            + " file into: %s",
+                                    tmpDir, CoreOptions.TMP_DIRS.key(), e.getMessage()));
+            fileNotFound.initCause(e);
+            throw fileNotFound;
+        }
+    }
+
+    /**
+     * Deletes the JAR files fetched by {@link #getJarFile} for this action. A {@code local://} JAR
+     * and the copies kept in {@link JobJarCache} stay.
+     */
+    @VisibleForTesting
+    void deleteFetchedJobJars() {
+        fetchedJobJarDirs.forEach(FileUtils::deleteDirectoryQuietly);
+        fetchedJobJarDirs.clear();
+        fetchedJobJars.clear();
     }
 
     // --------------------------------------------------------------------------------------------

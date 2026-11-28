@@ -46,7 +46,13 @@ public class CliFrontendParser {
                     false,
                     "Show the help message for the CLI Frontend or the action.");
 
-    static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
+    static final Option JAR_OPTION =
+            new Option(
+                    "j",
+                    "jarfile",
+                    true,
+                    "Flink program JAR file: a local path, or a URI such as s3://, hdfs:// or https://"
+                            + " which is fetched (and cached for file systems) before the program is run.");
 
     static final Option CLASS_OPTION =
             new Option(
