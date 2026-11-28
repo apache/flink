@@ -19,21 +19,35 @@
 package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.definitions.DeduplicateDefinition;
 import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.runtime.functions.BuiltInSpecializedFunction;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
+import org.apache.flink.types.RowKind;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#DEDUPLICATE}.
  *
  * <pre>
- * keep    sequence_by  implementation
- * first   absent       {@link DeduplicateEmitOnceFunction}
- * first   present      {@link DeduplicateCurrentRowFunction}
- * last    any          {@link DeduplicateCurrentRowFunction}
+ * input                                  keep    sequence_by  implementation
+ * insert-only                            first   absent       {@link DeduplicateEmitOnceFunction}
+ * insert-only                            first   present      {@link DeduplicateCurrentRowFunction}
+ * insert-only                            last    any          {@link DeduplicateCurrentRowFunction}
+ * updating, PARTITION BY has upsert key  any     any          {@link DeduplicatePassThroughFunction},
+ *                                                             or {@link DeduplicateKeyedRowFunction}
+ *                                                             if the output needs -U or full -D
+ * updating, other                        any     any          {@link DeduplicateLiveRowsFunction}
  * </pre>
  */
 @Internal
@@ -46,6 +60,14 @@ public class Deduplicate extends BuiltInSpecializedFunction {
     @Override
     public UserDefinedFunction specialize(final SpecializedContext context) {
         final CallContext callContext = context.getCallContext();
+        final TableSemantics tableSemantics =
+                CallContextUtils.getTableSemanticsOrThrow(callContext, ARG_INPUT);
+        final ChangelogMode inputMode =
+                tableSemantics.changelogMode().orElseThrow(IllegalStateException::new);
+        if (!inputMode.containsOnly(RowKind.INSERT)) {
+            return specializeUpdating(context, tableSemantics, inputMode);
+        }
+
         final boolean isKeepFirst = DeduplicateDefinition.keep(callContext) == Keep.FIRST;
 
         if (isKeepFirst) {
@@ -59,5 +81,36 @@ public class Deduplicate extends BuiltInSpecializedFunction {
         } else {
             return new DeduplicateCurrentRowFunction(context);
         }
+    }
+
+    private static UserDefinedFunction specializeUpdating(
+            final SpecializedContext context,
+            final TableSemantics tableSemantics,
+            final ChangelogMode inputMode) {
+        if (!isPartitionByUpsertKey(tableSemantics)) {
+            return new DeduplicateLiveRowsFunction(context);
+        }
+        final ChangelogMode outputMode =
+                context.getCallContext()
+                        .getOutputChangelogMode()
+                        .orElseThrow(IllegalStateException::new);
+        final boolean needsUpdateBefore =
+                outputMode.contains(RowKind.UPDATE_BEFORE)
+                        && !inputMode.contains(RowKind.UPDATE_BEFORE);
+        final boolean needsFullDeletes = inputMode.keyOnlyDeletes() && !outputMode.keyOnlyDeletes();
+        if (needsUpdateBefore || needsFullDeletes) {
+            return new DeduplicateKeyedRowFunction(context);
+        }
+        return new DeduplicatePassThroughFunction(context);
+    }
+
+    /** Returns whether the PARTITION BY columns contain an upsert key of the input. */
+    private static boolean isPartitionByUpsertKey(final TableSemantics tableSemantics) {
+        final Set<Integer> partitionBy =
+                Arrays.stream(tableSemantics.partitionByColumns())
+                        .boxed()
+                        .collect(Collectors.toSet());
+        return tableSemantics.upsertKeyColumns().stream()
+                .anyMatch(key -> Arrays.stream(key).allMatch(partitionBy::contains));
     }
 }

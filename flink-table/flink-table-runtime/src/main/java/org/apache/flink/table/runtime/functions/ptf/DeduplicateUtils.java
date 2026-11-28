@@ -25,11 +25,20 @@ import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.GeneratedComparator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.functions.TableSemantics.SortDirection;
+import org.apache.flink.table.functions.definitions.DeduplicateDefinition;
 import org.apache.flink.table.functions.definitions.DeduplicateDefinition.Keep;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.utils.CallContextUtils;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.apache.flink.table.functions.definitions.DeduplicateDefinition.ARG_INPUT;
 
 /** Record ordering of the built-in deduplication PTFs. */
 @Internal
@@ -42,6 +51,26 @@ public final class DeduplicateUtils {
      */
     public static boolean replaces(final Keep keep, final int order) {
         return keep == Keep.LAST ? order >= 0 : order < 0;
+    }
+
+    /** Returns a comparator of the {@code sequence_by} columns, or null if none are listed. */
+    static @Nullable SequenceComparator sequenceComparator(final SpecializedContext context) {
+        final TableSemantics tableSemantics =
+                CallContextUtils.getTableSemanticsOrThrow(context.getCallContext(), ARG_INPUT);
+        final int[] outputIndices = CallContextUtils.computeOutputIndices(tableSemantics);
+        final int[] sequenceIndices =
+                Arrays.stream(
+                                DeduplicateDefinition.sequenceByOutputIndices(
+                                        context.getCallContext()))
+                        .map(i -> outputIndices[i])
+                        .toArray();
+        if (sequenceIndices.length == 0) {
+            return null;
+        }
+        final List<DataType> fieldTypes = DataType.getFieldDataTypes(tableSemantics.dataType());
+        final DataType[] types =
+                Arrays.stream(sequenceIndices).mapToObj(fieldTypes::get).toArray(DataType[]::new);
+        return new SequenceComparator(context, sequenceIndices, types);
     }
 
     /**
