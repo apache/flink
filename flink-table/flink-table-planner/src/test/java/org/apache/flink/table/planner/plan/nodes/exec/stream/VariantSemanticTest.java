@@ -439,6 +439,29 @@ public class VariantSemanticTest extends SemanticTestBase {
                             "An expression of type VARIANT cannot be used in a comparison with '='")
                     .build();
 
+    static final TableTestProgram VARIANT_MIXED_WITH_OTHER_TYPE =
+            TableTestProgram.of(
+                            "variant-mixed-with-other-type",
+                            "validates that a variant has no common type with another type")
+                    .setupTableSource(OBJECTS_WITH_DIFFERENT_KEYS_SOURCE)
+                    .runFailingSql(
+                            "SELECT PARSE_JSON(s) FROM t UNION ALL SELECT s FROM t",
+                            ValidationException.class,
+                            "Type mismatch in column 1 of UNION ALL")
+                    .runFailingSql(
+                            "SELECT CASE WHEN s IS NULL THEN 1 ELSE PARSE_JSON(s) END FROM t",
+                            ValidationException.class,
+                            "Illegal mixing of types in CASE or COALESCE statement")
+                    .runFailingSql(
+                            "SELECT x FROM (VALUES (PARSE_JSON('1')), ('abc')) AS u(x)",
+                            ValidationException.class,
+                            "Values passed to VALUES operator must have compatible types")
+                    .runFailingSql(
+                            "SELECT ARRAY[PARSE_JSON(s), s] FROM t",
+                            ValidationException.class,
+                            "Parameters must be of the same type")
+                    .build();
+
     public static final SourceTestStep VARIANT_ARRAY_SOURCE =
             SourceTestStep.newBuilder("t")
                     .addSchema("v VARIANT")
@@ -781,6 +804,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_OBJECT_AS_DISTINCT_KEY,
                 VARIANT_FIELD_EQUALS_VARIANT,
                 VARIANT_FIELD_AS_JOIN_KEY,
+                VARIANT_MIXED_WITH_OTHER_TYPE,
                 VARIANT_ARRAY_ACCESS,
                 VARIANT_ARRAY_ACCESS_WITH_DIFFERENT_INDEX_TYPES,
                 VARIANT_ARRAY_ACCESS_WITH_NON_LITERAL_INDEX,
