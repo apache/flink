@@ -18,12 +18,14 @@
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMdNonCumulativeCost
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.plan.RelTrait
+import org.apache.calcite.plan.{RelOptCost, RelTrait}
 import org.apache.calcite.plan.hep.{HepPlanner, HepProgram}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 /**
  * A FlinkOptimizeProgram that runs with [[HepPlanner]].
@@ -49,7 +51,12 @@ class FlinkHepProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[O
     }
 
     try {
-      val planner = new HepPlanner(hepProgram.get, context)
+      val planner = new HepPlanner(hepProgram.get, context, false, null, FlinkCostFactory.HEP) {
+        override def getCost(rel: RelNode, mq: RelMetadataQuery): RelOptCost = {
+          // The cluster's metadata cache is also used by Volcano, which expects FlinkCost.
+          super.getCost(rel, rel.getCluster.getMetadataQuerySupplier.get())
+        }
+      }
       FlinkRelMdNonCumulativeCost.THREAD_PLANNER.set(planner)
 
       planner.setRoot(root)
