@@ -81,6 +81,8 @@ export class JobOverviewListComponent implements AfterViewInit, OnDestroy {
   public readonly trackById = (_: number, node: NodesItemCorrect): string => node.id;
   public readonly webRescaleEnabled = this.statusService.configuration.features['web-rescale'];
 
+  @Input() public jobType: string | undefined;
+
   public readonly sortStatusFn = createSortFn(item => item.detail?.status);
   public readonly sortReadBytesFn = createSortFn(item => item.detail?.metrics?.['read-bytes']);
   public readonly sortReadRecordsFn = createSortFn(item => item.detail?.metrics?.['read-records']);
