@@ -26,10 +26,10 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRel;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRank;
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule;
+import org.apache.flink.table.planner.plan.utils.TemporalJoinErrors;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -178,11 +178,7 @@ public class TemporalJoinRewriteWithUniqueKeyRule
 
         if (!rightPrimaryKeyInputRefs.isPresent()) {
             throw new ValidationException(
-                    "Temporal Table Join requires primary key in versioned table, "
-                            + "but no primary key can be found. "
-                            + "The physical plan is:\n"
-                            + RelOptUtil.toString(join)
-                            + "\n");
+                    TemporalJoinErrors.rightSideWithoutPrimaryKey(join, rightJoinKeyExpressions));
         }
 
         List<Integer> rightJoinKeyRefIndices =
@@ -200,31 +196,9 @@ public class TemporalJoinRewriteWithUniqueKeyRule
                         .allMatch(pk -> rightJoinKeyRefIndices.contains(pk));
 
         if (!primaryKeyContainedInJoinKey) {
-            List<String> joinFieldNames = join.getRowType().getFieldNames();
-            List<String> joinLeftFieldNames = join.getLeft().getRowType().getFieldNames();
-            List<String> joinRightFieldNames = join.getRight().getRowType().getFieldNames();
-
-            String primaryKeyNames =
-                    rightPrimaryKeyRefIndices.stream()
-                            .map(i -> joinFieldNames.get(i))
-                            .collect(Collectors.joining(","));
-
-            String joinEquiInfo =
-                    join.analyzeCondition().pairs().stream()
-                            .map(
-                                    pair ->
-                                            joinLeftFieldNames.get(pair.source)
-                                                    + "="
-                                                    + joinRightFieldNames.get(pair.target))
-                            .collect(Collectors.joining(","));
-
             throw new ValidationException(
-                    "Temporal table's primary key ["
-                            + primaryKeyNames
-                            + "] must be included in the "
-                            + "equivalence condition of temporal join, but current temporal join condition is ["
-                            + joinEquiInfo
-                            + "].");
+                    TemporalJoinErrors.primaryKeyNotCovered(
+                            join, rightPrimaryKeyRefIndices, rightJoinKeyRefIndices));
         }
     }
 

@@ -122,8 +122,9 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
         util.verifyRelPlan(
           "SELECT * FROM T1 JOIN T2 FOR SYSTEM_TIME AS OF T1.rowtime AS T " +
             "ON TRUE"))
-      .hasMessageContaining("Currently the join key in " +
-        "Temporal Table Join can not be empty.")
+      .hasMessageContaining(
+        "A temporal join needs an equality condition between a column of the left side and a " +
+          "column of the right side in its ON clause")
       .isInstanceOf[ValidationException]
   }
 
@@ -147,10 +148,10 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
           "SELECT * FROM T1 LEFT JOIN noPkTable FOR SYSTEM_TIME AS OF " +
             "T1.rowtime AS T ON T1.id = T.id"))
       .hasMessageContaining(
-        "Temporal Table Join requires primary key in versioned table," +
-          " but no primary key can be found. The physical plan is:\nFlinkLogicalJoin(" +
-          "condition=[AND(=($0, $4), __INITIAL_TEMPORAL_JOIN_CONDITION($3, $6," +
-          " __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[left])")
+        "The right side of an event-time temporal join must have a primary key on the join key, " +
+          "but none can be derived. Declare PRIMARY KEY (id) NOT ENFORCED on the right table, " +
+          "or deduplicate it to the last row per key with ROW_NUMBER() OVER " +
+          "(PARTITION BY id ORDER BY rowtime DESC) = 1.")
       .isInstanceOf[ValidationException]
   }
 
@@ -169,10 +170,11 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
         util.verifyRelPlan(
           "SELECT * FROM T1 JOIN noPkView FOR SYSTEM_TIME AS OF " +
             "T1.rowtime AS T ON T1.id = T.id"))
-      .hasMessageContaining("Temporal Table Join requires primary key in versioned table," +
-        " but no primary key can be found. The physical plan is:\n" +
-        "FlinkLogicalJoin(condition=[AND(=($0, $4), __INITIAL_TEMPORAL_JOIN_CONDITION(" +
-        "$3, $6, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])")
+      .hasMessageContaining(
+        "The right side of an event-time temporal join must have a primary key on the join key, " +
+          "but none can be derived. Declare PRIMARY KEY (id) NOT ENFORCED on the right table, " +
+          "or deduplicate it to the last row per key with ROW_NUMBER() OVER " +
+          "(PARTITION BY id ORDER BY rowtime DESC) = 1.")
       .isInstanceOf[ValidationException]
   }
 
@@ -183,8 +185,9 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
         util.verifyRelPlan(
           "SELECT * FROM T1 JOIN DeduplicatedView FOR SYSTEM_TIME AS OF " +
             "T1.rowtime AS T ON TRUE"))
-      .hasMessageContaining("Currently the join key in " +
-        "Temporal Table Join can not be empty.")
+      .hasMessageContaining(
+        "A temporal join needs an equality condition between a column of the left side and a " +
+          "column of the right side in its ON clause")
       .isInstanceOf[ValidationException]
   }
 }
