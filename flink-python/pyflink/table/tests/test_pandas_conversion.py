@@ -169,15 +169,49 @@ class PandasConversionITTests(PandasConversionTestBase):
     def test_to_pandas_with_nested_types(self):
         import pandas as pd
 
-        for expression, error in [('ARRAY[ROW(1)]', ValueError), ('ROW(ROW(1))', TypeError)]:
+        for expression, expected in [('ARRAY[ROW(1)]', [{'EXPR$0': 1}]),
+                                     ('ROW(ROW(1))', {'EXPR$0': {'EXPR$0': 1}})]:
             with self.subTest(expression=expression):
                 query = 'SELECT 1 AS a, %s AS payload FROM (VALUES (1)) AS t(x)' % expression
                 result = self.t_env.sql_query(query + ' WHERE FALSE').to_pandas()
-                expected = pd.DataFrame({'a': pd.Series(dtype='int32'),
-                                         'payload': pd.Series(dtype='object')})
-                assert_frame_equal(result, expected)
-                with self.assertRaisesRegex(error, 'ROW is not supported'):
+                expected_empty = pd.DataFrame({'a': pd.Series(dtype='int32'),
+                                               'payload': pd.Series(dtype='object')})
+                assert_frame_equal(result, expected_empty)
+                result = self.t_env.sql_query(query).to_pandas()
+                self.assertEqual([1], result['a'].tolist())
+                self.assertEqual(expected, self.to_python(result['payload'].iloc[0]))
+
+    def test_to_pandas_with_nested_rows(self):
+        for query, expected in [
+            ("SELECT `value` FROM (VALUES (CAST(ARRAY[ROW(1, 2), ROW(2, 2)] AS "
+             "ARRAY<ROW<`a` INT, `b` INT>>))) AS `t`(`value`)",
+             [{'a': 1, 'b': 2}, {'a': 2, 'b': 2}]),
+            ("SELECT CAST(ROW(ROW(1)) AS ROW<`outer` ROW<`inner` INT>>) AS `value`",
+             {'outer': {'inner': 1}}),
+        ]:
+            with self.subTest(query=query):
+                value = self.t_env.sql_query(query).to_pandas().to_dict('records')[0]['value']
+                self.assertEqual(expected, self.to_python(value))
+
+    def test_to_pandas_still_rejects_nested_local_zoned_timestamps(self):
+        timestamp = 'TO_TIMESTAMP_LTZ(1712910900000, 3)'
+        for expression in [
+            'ARRAY[%s]' % timestamp,
+            'ROW(%s)' % timestamp,
+            "MAP['key', %s]" % timestamp,
+            "CAST(MAP[%s, 'value'] AS MAP<TIMESTAMP_LTZ(3) NOT NULL, STRING>)" % timestamp,
+            "CAST(ARRAY[ROW(MAP['key', %s])] AS "
+            "ARRAY<ROW<`m` MAP<STRING NOT NULL, TIMESTAMP_LTZ(3)>>>)" % timestamp,
+        ]:
+            with self.subTest(expression=expression):
+                query = ('SELECT %s AS ltz, %s AS payload FROM (VALUES (1)) AS t(x)'
+                         % (timestamp, expression))
+                with self.assertRaisesRegex((ValueError, TypeError),
+                                            'is not supported to be used as the'):
                     self.t_env.sql_query(query).to_pandas()
+                # Empty results have nothing to convert, so they keep working.
+                result = self.t_env.sql_query(query + ' WHERE FALSE').to_pandas()
+                self.assertEqual(['ltz', 'payload'], result.columns.tolist())
 
     def test_empty_to_pandas_with_timestamps(self):
         original_timezone = self.t_env.get_config().get_local_timezone()
@@ -300,6 +334,11 @@ class PandasConversionITTests(PandasConversionTestBase):
             self.assertTrue((expected_field == result_field).all())
         else:
             self.assertTrue(expected_field == result_field)
+
+    @staticmethod
+    def to_python(value):
+        # Array columns are collected as numpy arrays, while row columns are collected as dicts.
+        return value.tolist() if hasattr(value, 'tolist') else value
 
 
 class BatchPandasConversionTests(PandasConversionTests,
