@@ -45,5 +45,14 @@ public interface CoordinatorStore {
 
     Object compute(Object key, BiFunction<Object, Object, Object> mappingFunction);
 
+    /**
+     * Applies {@code consumer} to the value currently mapped to {@code key} (or {@code null} if
+     * absent) atomically with respect to {@link #compute} and {@link #computeIfPresent} on the same
+     * key, without modifying the mapping.
+     *
+     * <p>The {@code consumer} runs under a per-key lock that other coordinators may wait on, so it
+     * should stay short and non-blocking, and must not invoke other operations on this {@link
+     * CoordinatorStore}.
+     */
     <R> R apply(Object key, Function<Object, R> consumer);
 }

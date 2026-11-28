@@ -24,6 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -61,6 +62,13 @@ public class CoordinatorStoreImpl implements CoordinatorStore {
 
     @Override
     public <R> R apply(Object key, Function<Object, R> consumer) {
-        return consumer.apply(store.get(key));
+        AtomicReference<R> result = new AtomicReference<>();
+        store.compute(
+                key,
+                (k, value) -> {
+                    result.set(consumer.apply(value));
+                    return value;
+                });
+        return result.get();
     }
 }
