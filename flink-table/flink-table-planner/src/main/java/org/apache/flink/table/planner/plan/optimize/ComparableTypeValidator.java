@@ -48,10 +48,16 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.fun.SqlQuantifyOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.util.SqlBasicVisitor;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import javax.annotation.Nullable;
@@ -72,7 +78,9 @@ import java.util.Set;
  * {@code <=}, {@code >} or {@code >=}.
  *
  * <p>The check runs on the logical plan before optimization. Comparisons that the optimizer adds
- * later only match a value with copies of itself and need no check.
+ * later only match a value with copies of itself and need no check. Converting SQL to a logical
+ * plan already simplifies a comparison of an expression with itself, so SQL comparisons are also
+ * checked during validation, see {@link #validateComparison}.
  */
 public final class ComparableTypeValidator {
 
@@ -95,7 +103,8 @@ public final class ComparableTypeValidator {
                     SqlKind.LESS_THAN,
                     SqlKind.LESS_THAN_OR_EQUAL,
                     SqlKind.GREATER_THAN,
-                    SqlKind.GREATER_THAN_OR_EQUAL);
+                    SqlKind.GREATER_THAN_OR_EQUAL,
+                    SqlKind.BETWEEN);
 
     /** Built-in functions that compare the elements of an array or the keys of a map. */
     private static final Set<FunctionDefinition> ELEMENT_COMPARING_FUNCTIONS =
@@ -122,6 +131,80 @@ public final class ComparableTypeValidator {
      */
     public static void validate(final List<RelNode> roots) {
         roots.forEach(root -> new PlanChecker().go(root));
+    }
+
+    /**
+     * Throws a {@link ValidationException} if a validated SQL call compares values of a type that
+     * is not comparable.
+     */
+    public static void validateComparison(
+            final SqlCall call, final SqlValidator validator, final SqlValidatorScope scope) {
+        if (call.isA(EQUALITY_OPERATORS)) {
+            checkComparison(call, validator, scope, EQUALITY);
+        } else if (call.isA(ORDER_OPERATORS)) {
+            checkComparison(call, validator, scope, ORDER);
+        } else if (call.getKind() == SqlKind.FILTER) {
+            // the validator does not validate the calls of an aggregate with FILTER one by one
+            final NestedComparisonChecker checker =
+                    new NestedComparisonChecker(validator, scope.getOperandScope(call));
+            call.getOperandList().forEach(operand -> operand.accept(checker));
+        }
+    }
+
+    private static void checkComparison(
+            final SqlCall call,
+            final SqlValidator validator,
+            final SqlValidatorScope scope,
+            final String requirement) {
+        final List<SqlNode> operands = call.getOperandList();
+        final SqlNode first = operands.get(0);
+        final SqlValidatorScope operandScope = scope.getOperandScope(call);
+        final String operatorName = call.getOperator().getName();
+        // IN compares its first operand with each value of a list, BETWEEN with each bound
+        for (final SqlNode operand : operands.subList(1, operands.size())) {
+            final List<SqlNode> others =
+                    operand instanceof SqlNodeList
+                            ? ((SqlNodeList) operand).getList()
+                            : List.of(operand);
+            for (final SqlNode other : others) {
+                // a comparison with NULL never compares two values
+                if (SqlUtil.isNullLiteral(first, true) || SqlUtil.isNullLiteral(other, true)) {
+                    continue;
+                }
+                for (final SqlNode compared : List.of(first, other)) {
+                    // the plan check covers a subquery, whose columns may repeat a name
+                    if (!compared.isA(SqlKind.QUERY)) {
+                        checkComparedType(
+                                validator.deriveType(operandScope, compared),
+                                operatorName,
+                                requirement);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Checks the comparisons in an expression whose calls the validator skips. */
+    private static final class NestedComparisonChecker extends SqlBasicVisitor<Void> {
+
+        private final SqlValidator validator;
+        private final SqlValidatorScope scope;
+
+        private NestedComparisonChecker(
+                final SqlValidator validator, final SqlValidatorScope scope) {
+            this.validator = validator;
+            this.scope = scope;
+        }
+
+        @Override
+        public Void visit(final SqlCall call) {
+            // a subquery validates its own calls
+            if (call.isA(SqlKind.QUERY)) {
+                return null;
+            }
+            validateComparison(call, validator, scope);
+            return super.visit(call);
+        }
     }
 
     private static final class PlanChecker extends RelVisitor {
@@ -306,13 +389,15 @@ public final class ComparableTypeValidator {
                 return;
             }
             for (final RexNode operand : operands) {
-                checkType(
-                        "An expression",
-                        operand.getType(),
-                        "in a comparison with '" + operatorName + "'",
-                        requirement);
+                checkComparedType(operand.getType(), operatorName, requirement);
             }
         }
+    }
+
+    private static void checkComparedType(
+            final RelDataType type, final String operatorName, final String requirement) {
+        checkType(
+                "An expression", type, "in a comparison with '" + operatorName + "'", requirement);
     }
 
     private static void checkFields(
