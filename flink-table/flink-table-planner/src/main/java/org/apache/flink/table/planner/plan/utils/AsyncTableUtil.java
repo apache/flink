@@ -21,11 +21,16 @@ package org.apache.flink.table.planner.plan.utils;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 
+import org.apache.calcite.rex.RexNode;
+
 import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.ANY_EXCEPTION;
 import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.EMPTY_RESPONSE;
@@ -63,5 +68,14 @@ public class AsyncTableUtil extends FunctionCallUtil {
                     .build();
         }
         return AsyncRetryStrategies.NO_RETRY_STRATEGY;
+    }
+
+    /** Rejects projections and conditions, which an async correlate does not support. */
+    public static void validateAsyncCorrelate(
+            Optional<List<RexNode>> projections, Optional<RexNode> condition) {
+        if (projections.isPresent() || condition.isPresent()) {
+            throw new TableException(
+                    "Currently Async correlate does not support projections or conditions.");
+        }
     }
 }

@@ -388,6 +388,10 @@ object FlinkBatchRuleSets {
     PythonCorrelateSplitFunctionKindRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
+    // Extract after calc merging to preserve shared results, but before Python calc normalization.
+    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_TABLE,
+    // remove the trivial calc that is produced by AsyncCorrelateSplitRule
+    FlinkLogicalCalcRemoveRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
@@ -489,6 +493,7 @@ object FlinkBatchRuleSets {
     BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
     BatchPhysicalCorrelateRule.INSTANCE,
     BatchPhysicalPythonCorrelateRule.INSTANCE,
+    BatchPhysicalAsyncCorrelateRule.INSTANCE,
     // sink
     BatchPhysicalSinkRule.INSTANCE,
     BatchPhysicalLegacySinkRule.INSTANCE,

@@ -42,6 +42,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.AsyncDuplicateRows;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.types.Row;
@@ -272,30 +273,6 @@ class UdfMetricsITCase {
                             future.complete(i);
                         }
                     },
-                    ASYNC_DELAY_MILLIS,
-                    TimeUnit.MILLISECONDS);
-        }
-    }
-
-    /** Emits each input twice off the task thread; the metered async table path. */
-    public static class AsyncDuplicateRows extends AsyncTableFunction<Integer> {
-        private transient ScheduledExecutorService executor;
-
-        @Override
-        public void open(FunctionContext context) {
-            executor = Executors.newSingleThreadScheduledExecutor();
-        }
-
-        @Override
-        public void close() {
-            if (executor != null) {
-                executor.shutdownNow();
-            }
-        }
-
-        public void eval(CompletableFuture<Collection<Integer>> future, Integer i) {
-            executor.schedule(
-                    () -> future.complete(Arrays.asList(i, i)),
                     ASYNC_DELAY_MILLIS,
                     TimeUnit.MILLISECONDS);
         }

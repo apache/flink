@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.utils.AsyncTableUtil;
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 
@@ -80,10 +80,7 @@ public class StreamPhysicalAsyncCorrelate extends StreamPhysicalCorrelateBase {
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        if (projections.isPresent() || condition.isPresent()) {
-            throw new TableException(
-                    "Currently Async correlate does not support projections or conditions.");
-        }
+        AsyncTableUtil.validateAsyncCorrelate(projections, condition);
         return new StreamExecAsyncCorrelate(
                 unwrapTableConfig(this),
                 JoinTypeUtil.getFlinkJoinType(joinType),

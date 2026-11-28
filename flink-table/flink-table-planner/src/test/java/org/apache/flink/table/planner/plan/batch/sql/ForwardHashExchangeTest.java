@@ -21,6 +21,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -143,6 +144,20 @@ class ForwardHashExchangeTest extends TableTestBase {
         util.verifyExecPlan(
                 "WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')\n"
                         + "SELECT sum(b1) FROM r group by a1");
+    }
+
+    @Test
+    void testHashAggOnAsyncCorrelateOnHashJoinWithHashShuffle() {
+        util.addTemporarySystemFunction(
+                "asyncFunc", new JavaUserDefinedTableFunctions.AsyncStringSplit());
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+                        "SortMergeJoin,NestedLoopJoin,SortAgg");
+        util.verifyExecPlan(
+                "WITH r AS (SELECT a1, s FROM T1, T2, LATERAL asyncFunc(c1) AS S(s) WHERE a1 = a2)\n"
+                        + "SELECT count(s) FROM r group by a1");
     }
 
     @Test

@@ -16,10 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecAsyncCorrelate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCorrelate;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.AsyncDuplicateRows;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.AsyncStringSplit;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.AsyncTestTableFunction;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.SumScalarFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -33,12 +38,17 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_RETRIES;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY;
 
-/** {@link TableTestProgram} definitions for testing {@link StreamExecAsyncCorrelate}. */
+/**
+ * {@link TableTestProgram} definitions for testing {@link StreamExecAsyncCorrelate} and {@link
+ * BatchExecAsyncCorrelate}.
+ */
 public class AsyncCorrelateTestPrograms {
     static final Row[] BEFORE_DATA = {Row.of(1L, 1, "hi#there"), Row.of(2L, 2, "hello#world")};
 
@@ -185,6 +195,97 @@ public class AsyncCorrelateTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT c, s FROM source_t, LATERAL TABLE(func1(c, '$')) AS T(s)")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Without restore data
+    // --------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram CORRELATE_IN_FLIGHT_AT_END_OF_INPUT =
+            TableTestProgram.of(
+                            "async-correlate-in-flight-at-end-of-input",
+                            "validates async correlate node with calls still in flight when the input ends")
+                    .setupConfig(TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS, 5)
+                    .setupTemporarySystemFunction("func1", AsyncDuplicateRows.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT")
+                                    .producedValues(
+                                            IntStream.range(0, 20)
+                                                    .mapToObj(Row::of)
+                                                    .toArray(Row[]::new))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "s INT")
+                                    .consumedValues(
+                                            IntStream.range(0, 20)
+                                                    .boxed()
+                                                    .flatMap(
+                                                            i ->
+                                                                    Stream.of(
+                                                                            Row.of(i, i),
+                                                                            Row.of(i, i)))
+                                                    .toArray(Row[]::new))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a, s FROM source_t, LATERAL func1(a) AS T(s)")
+                    .build();
+
+    public static final TableTestProgram CORRELATE_SCALAR_ARGUMENT =
+            TableTestProgram.of(
+                            "async-correlate-scalar-argument",
+                            "validates async correlate node with a scalar function in its argument")
+                    .setupTemporarySystemFunction("func1", AsyncTestTableFunction.class)
+                    .setupTemporarySystemFunction("mySum", SumScalarFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT NOT NULL")
+                                    .producedValues(Row.of(1), Row.of(2))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "s STRING")
+                                    .consumedValues(
+                                            Row.of(1, "blah 11"),
+                                            Row.of(1, "foo 11"),
+                                            Row.of(2, "blah 12"),
+                                            Row.of(2, "foo 12"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a, s "
+                                    + "FROM source_t, LATERAL func1(mySum(a, 10)) AS T(s)")
+                    .build();
+
+    public static final TableTestProgram CORRELATE_JOIN_INPUT =
+            TableTestProgram.of(
+                            "async-correlate-join-input",
+                            "validates async correlate node between an aggregation and a hash join")
+                    .setupTemporaryCatalogFunction("func1", TableFunc1.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("c STRING", "b INT")
+                                    .producedValues(
+                                            Row.of("hi#there", 1),
+                                            Row.of("hi#there", 2),
+                                            Row.of("hello#world", 3))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("c STRING", "s STRING", "b INT")
+                                    .consumedValues(
+                                            Row.of("hi#there", "hi", 1),
+                                            Row.of("hi#there", "there", 1),
+                                            Row.of("hi#there", "hi", 2),
+                                            Row.of("hi#there", "there", 2),
+                                            Row.of("hello#world", "hello", 3),
+                                            Row.of("hello#world", "world", 3))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT t1.c, t1.s, t2.b FROM "
+                                    + "(SELECT c, s FROM (SELECT c FROM source_t GROUP BY c), "
+                                    + "LATERAL func1(c) AS T(s)) t1 "
+                                    + "JOIN source_t t2 ON t1.c = t2.c")
                     .build();
 
     /** Splitter functions. */
