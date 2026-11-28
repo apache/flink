@@ -235,4 +235,23 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
                 .isEqualTo(Constants.DNS_POLICY_HOSTNETWORK);
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED, false);
     }
+
+    @Test
+    void testServiceLinksWithPodTemplate() {
+        assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getEnableServiceLinks())
+                .isFalse();
+    }
+
+    @Test
+    void testServiceLinksOverwritten() throws Exception {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_POD_SERVICE_LINKS_ENABLED, true);
+        final FlinkPod podTemplate =
+                KubernetesUtils.loadPodFromTemplateFile(
+                        flinkKubeClient,
+                        KubernetesPodTemplateTestUtils.getPodTemplateFile(),
+                        KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
+        final FlinkPod newResultPod = getResultPod(podTemplate);
+        assertThat(newResultPod.getPodWithoutMainContainer().getSpec().getEnableServiceLinks())
+                .isTrue();
+    }
 }
