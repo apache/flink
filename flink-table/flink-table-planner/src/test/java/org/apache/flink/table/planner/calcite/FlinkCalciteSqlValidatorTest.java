@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
@@ -61,6 +62,12 @@ class FlinkCalciteSqlValidatorTest {
                                             DataTypes.ROW(
                                                     DataTypes.FIELD("a", DataTypes.INT()),
                                                     DataTypes.FIELD("b", DataTypes.INT())))
+                                    .build())
+                    .registerTemporaryTable(
+                            "t_ts",
+                            Schema.newBuilder()
+                                    .column("a", DataTypes.INT())
+                                    .column("ts", DataTypes.TIMESTAMP(3))
                                     .build());
 
     @Test
@@ -209,6 +216,60 @@ class FlinkCalciteSqlValidatorTest {
                 "SELECT a, JSON_ARRAYAGG(b NULL ON NULL) FROM t2 GROUP BY a"
             })
     void testJsonArrayAggWithoutOrderBy(String sql) {
+        assertDoesNotThrow(() -> plannerMocks.getParser().parse(sql));
+    }
+
+    @Test
+    void testGroupWindowAuxiliaryWithoutGroupBy() {
+        assertThatThrownBy(
+                        () ->
+                                plannerMocks
+                                        .getParser()
+                                        .parse(
+                                                "SELECT TUMBLE_START(ts, INTERVAL '10' SECOND) FROM t_ts"))
+                .isInstanceOf(ValidationException.class)
+                .hasRootCauseMessage(
+                        "TUMBLE_START(`t_ts`.`ts`, INTERVAL '10' SECOND) can only be used in the "
+                                + "SELECT, HAVING or ORDER BY clause of a query that groups by a "
+                                + "TUMBLE window with the same time attribute and interval.");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT HOP_END(ts, INTERVAL '10' SECOND, INTERVAL '1' MINUTE) FROM t_ts",
+                "SELECT SESSION_START(ts, INTERVAL '10' SECOND) FROM t_ts",
+                "SELECT TUMBLE_ROWTIME(ts, INTERVAL '10' SECOND) FROM t_ts",
+                "SELECT a FROM t_ts WHERE TUMBLE_END(ts, INTERVAL '10' SECOND) > TIMESTAMP '2020-01-01 00:00:00'",
+                "SELECT a FROM t_ts ORDER BY TUMBLE_START(ts, INTERVAL '10' SECOND)",
+                "SELECT SUM(a) OVER (ORDER BY TUMBLE_START(ts, INTERVAL '10' SECOND)) FROM t_ts",
+                "SELECT COUNT(*) FROM t_ts WHERE TUMBLE_END(ts, INTERVAL '10' SECOND) > TIMESTAMP '2020-01-01 00:00:00' "
+                        + "GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)",
+                "SELECT COUNT(*) FROM t_ts GROUP BY TUMBLE_START(ts, INTERVAL '10' SECOND)"
+            })
+    void testGroupWindowAuxiliaryOutsideOfGroupWindowAggregation(String sql) {
+        assertThatThrownBy(() -> plannerMocks.getParser().parse(sql))
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "can only be used in the SELECT, HAVING or ORDER BY clause of a "
+                                        + "query that groups by a"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), COUNT(*) FROM t_ts "
+                        + "GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)",
+                "SELECT COUNT(*) FROM t_ts GROUP BY TUMBLE(ts, INTERVAL '10' SECOND) "
+                        + "HAVING TUMBLE_END(ts, INTERVAL '10' SECOND) > TIMESTAMP '2020-01-01 00:00:00'",
+                "SELECT COUNT(*) FROM t_ts GROUP BY TUMBLE(ts, INTERVAL '10' SECOND) "
+                        + "ORDER BY TUMBLE_START(ts, INTERVAL '10' SECOND)",
+                "SELECT w FROM (SELECT TUMBLE_START(ts, INTERVAL '10' SECOND) AS w FROM t_ts "
+                        + "GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)) "
+                        + "WHERE w > TIMESTAMP '2020-01-01 00:00:00'"
+            })
+    void testGroupWindowAuxiliaryInGroupWindowAggregation(String sql) {
         assertDoesNotThrow(() -> plannerMocks.getParser().parse(sql));
     }
 
