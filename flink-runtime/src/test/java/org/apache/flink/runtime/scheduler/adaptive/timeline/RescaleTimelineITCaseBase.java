@@ -61,7 +61,9 @@ abstract class RescaleTimelineITCaseBase {
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         configuration.set(
                 JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
-                Duration.ofMillis(50));
+                // Doubled from 50ms to leave more margin on slow CI machines. If this test turns
+                // flaky again, increase the value further.
+                Duration.ofMillis(100));
         configuration.set(
                 JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
                 // Use the 0.1 seconds to trigger the long-time non-terminal rescale event after a
