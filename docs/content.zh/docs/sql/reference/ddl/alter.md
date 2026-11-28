@@ -392,6 +392,8 @@ ALTER TABLE [IF EXISTS] table_name {
 
 向表新增列时可通过 `FIRST` or `AFTER col_name` 指定位置，不指定位置时默认追加在最后。
 
+当列名 `IF` 紧跟在 `ADD` 后面时，必须使用反引号引用列名，例如 ``ALTER TABLE MyTable ADD `if` INT``。
+
 `ADD` 语句示例如下。
 
 ```sql

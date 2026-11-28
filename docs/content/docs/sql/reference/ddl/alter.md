@@ -337,7 +337,12 @@ Flink SQL> DESC CATALOG EXTENDED cat2;
 The following grammar gives an overview about the available syntax:
 ```text
 ALTER TABLE [IF EXISTS] table_name {
-    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [<partition_component> ...] | <distribution> }
+    ADD { COLUMN [IF NOT EXISTS] <column_component>
+        | IF NOT EXISTS <column_component>
+        | IF NOT EXISTS (<column_component> [, ...])
+        | <schema_component> | (<schema_component> [, ...])
+        | [IF NOT EXISTS] <partition_component> [<partition_component> ...]
+        | <distribution> }
   | MODIFY { <schema_component> | (<schema_component> [, ...]) | <distribution> }
   | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...] | DISTRIBUTION }
   | RENAME old_column_name TO new_column_name
@@ -389,11 +394,45 @@ Use `ADD` clause to add [columns]({{< ref "docs/sql/reference/ddl/create" >}}#co
 
 To add a column at the specified position, use `FIRST` or `AFTER col_name`. By default, the column is appended at last.
 
+Use `IF NOT EXISTS` to add columns only if their names are missing.
+The following forms are equivalent for a single column:
+
+```sql
+ALTER TABLE MyTable ADD COLUMN IF NOT EXISTS category_id STRING;
+ALTER TABLE MyTable ADD IF NOT EXISTS category_id STRING;
+ALTER TABLE MyTable ADD IF NOT EXISTS (category_id STRING);
+```
+
+Use `ADD IF NOT EXISTS (column_definition, ...)` for several columns. Each existing
+column is skipped independently and keeps its type, comment, and position; any
+missing columns are added in the same statement. The guarded list supports column
+definitions, including inline column constraints, but not standalone constraints,
+watermarks, or distribution changes.
+
+This can be combined with `CREATE TABLE IF NOT EXISTS` to make schema setup
+repeatable before an `INSERT`. The source and destination schemas must still be
+compatible for the insertion.
+
+The column-level `IF NOT EXISTS` does not suppress an error for a missing table.
+Use `ALTER TABLE IF EXISTS` to skip an alteration when the table is missing.
+
+If a column named `IF` immediately follows `ADD`, enclose the name in backticks,
+for example, ``ALTER TABLE MyTable ADD `if` INT``.
+
 The following examples illustrate the usage of the `ADD` statements.
 
 ```sql
 -- add a new column 
 ALTER TABLE MyTable ADD category_id STRING COMMENT 'identifier of the category';
+
+-- add a column only if it is missing; repeating this statement succeeds
+ALTER TABLE MyTable ADD COLUMN IF NOT EXISTS category_id STRING COMMENT 'identifier of the category';
+
+-- add missing columns; existing columns keep their definitions
+ALTER TABLE MyTable ADD IF NOT EXISTS (
+    category_id STRING COMMENT 'identifier of the category',
+    category_name STRING AFTER category_id
+);
 
 -- add columns, constraint, and watermark
 ALTER TABLE MyTable ADD (

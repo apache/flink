@@ -1008,3 +1008,127 @@ Calc(select=[user, product])
   } ]
 }
 !ok
+
+# test repeated schema setup with a conditional column addition
+CREATE TABLE IF NOT EXISTS conditional_columns (id BIGINT) WITH ('connector' = 'blackhole');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+ALTER TABLE conditional_columns ADD COLUMN IF NOT EXISTS abc INT COMMENT 'original';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+CREATE TABLE IF NOT EXISTS conditional_columns (id BIGINT) WITH ('connector' = 'blackhole');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+ALTER TABLE conditional_columns ADD COLUMN IF NOT EXISTS abc BIGINT COMMENT 'replacement' FIRST;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+SHOW CREATE TABLE conditional_columns;
+!output
+CREATE TABLE `default_catalog`.`default_database`.`conditional_columns` (
+  `id` BIGINT,
+  `abc` INT COMMENT 'original'
+)
+WITH (
+  'connector' = 'blackhole'
+)
+!ok
+
+DROP TABLE conditional_columns;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+CREATE TABLE conditional_column_lists (id BIGINT) WITH ('connector' = 'blackhole');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+ALTER TABLE conditional_column_lists ADD IF NOT EXISTS `value` STRING;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+ALTER TABLE conditional_column_lists ADD IF NOT EXISTS (`value` BIGINT, extra INT);
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+ALTER TABLE conditional_column_lists ADD IF NOT EXISTS (`value` BIGINT, extra BIGINT);
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+SHOW CREATE TABLE conditional_column_lists;
+!output
+CREATE TABLE `default_catalog`.`default_database`.`conditional_column_lists` (
+  `id` BIGINT,
+  `value` VARCHAR(2147483647),
+  `extra` INT
+)
+WITH (
+  'connector' = 'blackhole'
+)
+!ok
+
+DROP TABLE conditional_column_lists;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
