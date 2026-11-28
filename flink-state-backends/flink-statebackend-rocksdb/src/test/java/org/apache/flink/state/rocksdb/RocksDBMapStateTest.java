@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.jupiter.api.AfterEach;
@@ -34,6 +35,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.FlushOptions;
 import org.rocksdb.MutableColumnFamilyOptions;
+import org.rocksdb.RocksDBException;
+import org.rocksdb.RocksIterator;
 import org.rocksdb.TableProperties;
 
 import java.nio.file.Path;
@@ -47,6 +50,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.state.rocksdb.RocksDBMapState.ITERATOR_CACHE_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests iteration and prefix isolation of RocksDB map state operations. */
 class RocksDBMapStateTest {
@@ -92,6 +96,34 @@ class RocksDBMapStateTest {
         if (backend != null) {
             IOUtils.closeQuietly(backend);
             backend.dispose();
+        }
+    }
+
+    @Test
+    void testUnboundedSeekExceedsSkipLimitOnNeighborTombstones() throws Exception {
+        createNeighborTombstones();
+
+        try (RocksIterator iterator =
+                backend.db.newIterator(columnFamily, backend.getReadOptions())) {
+            iterator.seekToFirst();
+            assertThatThrownBy(iterator::status)
+                    .isInstanceOf(RocksDBException.class)
+                    .hasMessageContaining("Too many internal keys skipped");
+        }
+    }
+
+    @Test
+    void testBoundedIteratorObservesUpdatedSkipLimit() throws Exception {
+        createNeighborTombstones();
+        // All keys belong to key group zero, so this range includes the deleted neighbor.
+        try (RocksIteratorWrapper iterator =
+                backend.getPrefixBoundedIteratorFactory()
+                        .newIterator(backend.db, columnFamily, new byte[] {0})) {
+            iterator.seekToFirst();
+            assertThatThrownBy(iterator::status)
+                    .isInstanceOf(FlinkRuntimeException.class)
+                    .hasRootCauseInstanceOf(RocksDBException.class)
+                    .hasRootCauseMessage("Too many internal keys skipped.");
         }
     }
 

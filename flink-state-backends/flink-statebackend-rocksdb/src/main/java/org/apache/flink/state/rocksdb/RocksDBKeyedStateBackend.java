@@ -213,6 +213,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      */
     private final ReadOptions readOptions;
 
+    /** Creates the iterators that are bounded by a key prefix, such as the ones of map state. */
+    private final PrefixBoundedIteratorFactory prefixBoundedIteratorFactory;
+
     /** The max memory size for one batch in {@link RocksDBWriteBatchWrapper}. */
     private final long writeBatchSize;
 
@@ -329,6 +332,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         this.writeOptions = optionsContainer.getWriteOptions();
         this.readOptions = optionsContainer.getReadOptions();
+        this.prefixBoundedIteratorFactory = new PrefixBoundedIteratorFactory(readOptions);
         this.writeBatchSize = writeBatchSize;
         this.db = db;
         this.rocksDBResourceGuard = rocksDBResourceGuard;
@@ -588,6 +592,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // working on the disposed object results in SEGFAULTS.
         if (db != null) {
             IOUtils.closeQuietly(writeBatchWrapper);
+            IOUtils.closeQuietly(prefixBoundedIteratorFactory);
 
             // Metric collection occurs on a background thread. When this method returns
             // it is guaranteed that thr RocksDB reference has been invalidated
@@ -687,6 +692,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     public ReadOptions getReadOptions() {
         return readOptions;
+    }
+
+    PrefixBoundedIteratorFactory getPrefixBoundedIteratorFactory() {
+        return prefixBoundedIteratorFactory;
     }
 
     SerializedCompositeKeyBuilder<K> getSharedRocksKeyBuilder() {
