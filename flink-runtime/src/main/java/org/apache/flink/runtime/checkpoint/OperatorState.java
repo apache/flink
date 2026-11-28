@@ -198,6 +198,9 @@ public class OperatorState implements CompositeStateHandle {
                             .build());
         }
 
+        // In-flight data is part of the subtask state only, the coordinator state must be kept.
+        newState.setCoordinatorState(coordinatorState);
+
         return newState;
     }
 
