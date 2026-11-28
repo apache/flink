@@ -18,7 +18,9 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
@@ -26,6 +28,7 @@ import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
+import io.fabric8.kubernetes.api.model.EnvVar;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -41,13 +44,14 @@ class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     @Override
     protected void onSetup() throws Exception {
         super.onSetup();
+        // The command decorator resolves the deployment target, so it must be set for all tests.
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
 
         this.cmdJobManagerDecorator = new CmdJobManagerDecorator(kubernetesJobManagerParameters);
     }
 
     @Test
     void testContainerIsDecorated() {
-        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         final FlinkPod resultFlinkPod = cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
         assertThat(resultFlinkPod.getPodWithoutMainContainer())
                 .isEqualTo(baseFlinkPod.getPodWithoutMainContainer());
@@ -70,6 +74,33 @@ class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void testActiveProcessorCountLimitedToCpuRequest() {
+        final FlinkPod resultFlinkPod = cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
+        assertThat(jvmArgsEnvValue(resultFlinkPod)).isEqualTo("-XX:ActiveProcessorCount=2");
+    }
+
+    @Test
+    void testUserActiveProcessorCountInDefaultJvmOptionsTakesPrecedence() {
+        flinkConfig.set(CoreOptions.FLINK_DEFAULT_JM_JVM_OPTIONS, "-XX:ActiveProcessorCount=8");
+        assertNoJvmArgs(cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod), baseFlinkPod);
+    }
+
+    @Test
+    void testActiveProcessorCountLimitDisabled() {
+        flinkConfig.set(
+                KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_ACTIVE_PROCESSOR_COUNT_ENABLED,
+                false);
+        assertNoJvmArgs(cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod), baseFlinkPod);
+    }
+
+    @Test
+    void testTaskManagerLimitFactorDoesNotLimitJobManager() {
+        flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR, 1.0);
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 4.0);
+        assertNoJvmArgs(cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod), baseFlinkPod);
+    }
+
     private void testJobManagerCommandsAndArgs(String target) {
         flinkConfig.set(DeploymentOptions.TARGET, target);
         final FlinkPod resultFlinkPod = cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
@@ -85,5 +116,18 @@ class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                                 + ENTRYPOINT_ARGS);
         assertThat(resultFlinkPod.getMainContainer().getArgs())
                 .containsExactlyElementsOf(flinkCommands);
+    }
+
+    private static String jvmArgsEnvValue(FlinkPod flinkPod) {
+        return KubernetesTestUtils.getEnvVarValue(
+                flinkPod.getMainContainer(), Constants.ENV_JVM_ARGS);
+    }
+
+    private static void assertNoJvmArgs(FlinkPod resultFlinkPod, FlinkPod inputFlinkPod) {
+        assertThat(resultFlinkPod.getMainContainer().getEnv())
+                .extracting(EnvVar::getName)
+                .doesNotContain(Constants.ENV_JVM_ARGS);
+        assertThat(resultFlinkPod.getMainContainer().getEnv())
+                .containsAll(inputFlinkPod.getMainContainer().getEnv());
     }
 }

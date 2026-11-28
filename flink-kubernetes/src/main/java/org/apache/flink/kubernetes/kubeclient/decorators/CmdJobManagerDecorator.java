@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
+import org.apache.flink.kubernetes.utils.ActiveProcessorCountLimiter;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -48,7 +49,17 @@ public class CmdJobManagerDecorator extends AbstractKubernetesStepDecorator {
                         .withArgs(getJobManagerStartCommand())
                         .build();
 
-        return new FlinkPod.Builder(flinkPod).withMainContainer(mainContainerWithStartCmd).build();
+        final Container mainContainerWithLimitedProcessors =
+                ActiveProcessorCountLimiter.limit(
+                        mainContainerWithStartCmd,
+                        kubernetesJobManagerParameters.getFlinkConfiguration(),
+                        ActiveProcessorCountLimiter.JvmComponent.JOB_MANAGER,
+                        kubernetesJobManagerParameters.getJobManagerCPU(),
+                        kubernetesJobManagerParameters.getJobManagerCPULimitFactor());
+
+        return new FlinkPod.Builder(flinkPod)
+                .withMainContainer(mainContainerWithLimitedProcessors)
+                .build();
     }
 
     private List<String> getJobManagerStartCommand() {

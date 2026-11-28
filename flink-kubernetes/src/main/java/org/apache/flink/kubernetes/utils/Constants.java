@@ -130,6 +130,18 @@ public class Constants {
 
     public static final String ENV_TM_JVM_MEM_OPTS = "FLINK_TM_JVM_MEM_OPTS";
 
+    // JVM argument env vars honored by the kubernetes-*.sh / config.sh startup scripts
+    public static final String ENV_JVM_ARGS = "JVM_ARGS";
+    public static final String ENV_FLINK_ENV_JAVA_OPTS = "FLINK_ENV_JAVA_OPTS";
+    public static final String ENV_FLINK_ENV_JAVA_OPTS_JM = "FLINK_ENV_JAVA_OPTS_JM";
+    public static final String ENV_FLINK_ENV_JAVA_OPTS_TM = "FLINK_ENV_JAVA_OPTS_TM";
+
+    // Standard JVM env vars, applied by the JVM itself: the first two before the command line
+    // options, the last one after them
+    public static final String ENV_JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+    public static final String ENV_JDK_JAVA_OPTIONS = "JDK_JAVA_OPTIONS";
+    public static final String ENV_UNDERSCORE_JAVA_OPTIONS = "_JAVA_OPTIONS";
+
     // "resourceVersion="0" is any resource version.It saves time to access etcd and improves
     // performance.
     // https://kubernetes.io/docs/reference/using-api/api-concepts/#the-resourceversion-parameter

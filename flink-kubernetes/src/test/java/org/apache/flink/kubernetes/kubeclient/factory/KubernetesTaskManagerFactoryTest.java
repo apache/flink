@@ -87,7 +87,13 @@ class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestBase {
         assertThat(resultMainContainer.getImagePullPolicy())
                 .isEqualTo(CONTAINER_IMAGE_PULL_POLICY.name());
 
-        assertThat(resultMainContainer.getEnv()).hasSize(5);
+        assertThat(resultMainContainer.getEnv()).hasSize(6);
+        assertThat(resultMainContainer.getEnv())
+                .anySatisfy(
+                        envVar -> {
+                            assertThat(envVar.getName()).isEqualTo(Constants.ENV_JVM_ARGS);
+                            assertThat(envVar.getValue()).isEqualTo("-XX:ActiveProcessorCount=2");
+                        });
         assertThat(
                         resultMainContainer.getEnv().stream()
                                 .anyMatch(envVar -> envVar.getName().equals("key1")))

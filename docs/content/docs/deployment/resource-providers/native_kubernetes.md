@@ -241,6 +241,23 @@ containerized.master.env.KUBERNETES_MAX_CONCURRENT_REQUESTS: 200
 env.java.opts.jobmanager: "-Dkubernetes.max.concurrent.requests=200"
 ```
 
+### CPU Limit Factor
+
+The [kubernetes.jobmanager.cpu.limit-factor]({{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-cpu-limit-factor) and [kubernetes.taskmanager.cpu.limit-factor]({{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-cpu-limit-factor) options raise the container CPU limit above the CPU request to allow bursting.
+The container-aware JVM derives `Runtime.availableProcessors()` from the CPU quota, so GC and JIT threads, `ForkJoinPool.commonPool()` and thread pools sized from the processor count grow with the CPU limit, while the memory budget, including `MaxDirectMemorySize`, does not. This can lead to `OutOfMemoryError: Direct buffer memory`.
+
+To prevent this, Flink limits the processors that the JVM sees to the CPU request:
+
+- If the CPU limit factor is greater than `1`, Flink appends `-XX:ActiveProcessorCount=<CPU request, rounded up>` to the `JVM_ARGS` environment variable of the JobManager/TaskManager container.
+- This can be disabled per component via [kubernetes.jobmanager.cpu.limit-active-processor-count.enabled]({{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-cpu-limit-active-processor-count-enabled) and [kubernetes.taskmanager.cpu.limit-active-processor-count.enabled]({{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-cpu-limit-active-processor-count-enabled).
+- A user-configured `-XX:ActiveProcessorCount` takes precedence. No flag is added if it is already effective via [env.java.opts.all]({{< ref "docs/deployment/config" >}}#env-java-opts-all), `env.java.default-opts.all` or their JobManager/TaskManager variants, or via the `FLINK_ENV_JAVA_OPTS`, `FLINK_ENV_JAVA_OPTS_JM`/`FLINK_ENV_JAVA_OPTS_TM`, `JVM_ARGS`, `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS` or `_JAVA_OPTIONS` environment variables of the container, set via `containerized.master.env.*`/`containerized.taskmanager.env.*` or a pod template. Note that the startup scripts ignore the `env.java.*` options if the corresponding `FLINK_ENV_JAVA_OPTS*` environment variable is set.
+- No flag is added if the container uses `envFrom`, or sets `JVM_ARGS`, `JAVA_TOOL_OPTIONS` or `JDK_JAVA_OPTIONS` via `valueFrom` (for example via [kubernetes.env.secretKeyRef]({{< ref "docs/deployment/config" >}}#kubernetes-env-secretkeyref)), because these values cannot be inspected when the pod is created and the flag would override or shadow them. Set `-XX:ActiveProcessorCount` explicitly via `env.java.opts.*` in that case.
+- When the flag is added, the `JVM_ARGS` environment variable of the container replaces a `JVM_ARGS` set in the image (e.g. `ENV JVM_ARGS=...` in a Dockerfile), so provide such options via `env.java.opts.*` instead.
+- Environment variables provided by the image or by an admission webhook, and JVM argument files passed with `@file`, cannot be inspected either. An `-XX:ActiveProcessorCount` in them does not prevent the flag from being added and is overridden by it.
+- `-XX:ActiveProcessorCount` also overrides CPU affinity detection: if the pod's cpuset or the node has fewer CPUs than the CPU request, the JVM still reports the request size. On Java 11 the processor count may already follow the CPU request, in which case the flag does not change anything.
+- In session mode, the `kubernetes.taskmanager.*` options must be set on the session cluster, because the JobManager creates the TaskManager pods.
+- This also applies to Flink Kubernetes Operator deployments in native mode, where the Operator derives the limit factor from the pod resources. Standalone mode is not affected.
+
 ### Accessing Flink's Web UI
 
 Flink's Web UI and REST endpoint can be exposed in several ways via the [kubernetes.rest-service.exposed.type]({{< ref "docs/deployment/config" >}}#kubernetes-rest-service-exposed-type) configuration option.
@@ -649,7 +666,7 @@ All the fields defined in the pod template that are not listed in the tables wil
             <td>Merged with Flink</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#forwarding-environment-variables">containerized.master.env.{ENV_NAME}</a>
                 <a href="{{< ref "docs/deployment/config" >}}#forwarding-environment-variables">containerized.taskmanager.env.{ENV_NAME}</a></td>
-            <td>Flink will add some internal environment variables to the user defined values.</td>
+            <td>Flink will add some internal environment variables to the user defined values, and may append <code>-XX:ActiveProcessorCount</code> to <code>JVM_ARGS</code> (see <a href="#cpu-limit-factor">CPU Limit Factor</a>).</td>
         </tr>
         <tr>
             <td>image</td>

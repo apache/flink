@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
+import org.apache.flink.kubernetes.utils.ActiveProcessorCountLimiter;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -56,7 +57,17 @@ public class CmdTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                                         .build())
                         .build();
 
-        return new FlinkPod.Builder(flinkPod).withMainContainer(mainContainerWithStartCmd).build();
+        final Container mainContainerWithLimitedProcessors =
+                ActiveProcessorCountLimiter.limit(
+                        mainContainerWithStartCmd,
+                        kubernetesTaskManagerParameters.getFlinkConfiguration(),
+                        ActiveProcessorCountLimiter.JvmComponent.TASK_MANAGER,
+                        kubernetesTaskManagerParameters.getTaskManagerCPU(),
+                        kubernetesTaskManagerParameters.getTaskManagerCPULimitFactor());
+
+        return new FlinkPod.Builder(flinkPod)
+                .withMainContainer(mainContainerWithLimitedProcessors)
+                .build();
     }
 
     private List<String> getTaskManagerStartCommand() {

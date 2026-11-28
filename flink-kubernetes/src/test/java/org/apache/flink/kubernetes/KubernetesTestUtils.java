@@ -26,6 +26,9 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
 import org.apache.flink.shaded.guava33.com.google.common.io.Files;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVar;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -76,5 +79,22 @@ public class KubernetesTestUtils {
                 containeredTaskManagerParameters,
                 Collections.emptyMap(),
                 Collections.emptySet());
+    }
+
+    /**
+     * Returns the literal value of the last env var with the given name, mirroring Kubernetes'
+     * last-duplicate-wins semantics; {@code null} if absent or declared via {@code valueFrom}.
+     */
+    public static String getEnvVarValue(Container container, String name) {
+        if (container.getEnv() == null) {
+            return null;
+        }
+        String value = null;
+        for (EnvVar envVar : container.getEnv()) {
+            if (name.equals(envVar.getName())) {
+                value = envVar.getValue();
+            }
+        }
+        return value;
     }
 }

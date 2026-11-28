@@ -188,7 +188,13 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         assertThat(resultedMainContainer.getImagePullPolicy())
                 .isEqualTo(CONTAINER_IMAGE_PULL_POLICY.name());
 
-        assertThat(resultedMainContainer.getEnv()).hasSize(3);
+        assertThat(resultedMainContainer.getEnv()).hasSize(4);
+        assertThat(resultedMainContainer.getEnv())
+                .anySatisfy(
+                        envVar -> {
+                            assertThat(envVar.getName()).isEqualTo(Constants.ENV_JVM_ARGS);
+                            assertThat(envVar.getValue()).isEqualTo("-XX:ActiveProcessorCount=2");
+                        });
         assertThat(resultedMainContainer.getEnv().stream())
                 .anyMatch(envVar -> envVar.getName().equals("key1"));
 
